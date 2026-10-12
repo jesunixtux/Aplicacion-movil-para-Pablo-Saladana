@@ -5,43 +5,36 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import cl.duoc.coegio_pablo_saladana.data.UserRepository
+import cl.duoc.coegio_pablo_saladana.ui.auth.AuthDestination
+import cl.duoc.coegio_pablo_saladana.ui.auth.AuthScreens
 import cl.duoc.coegio_pablo_saladana.ui.theme.CoegioPabloSaladanaTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val userRepository = UserRepository(applicationContext)
+
         setContent {
             CoegioPabloSaladanaTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                var destination by remember { mutableStateOf(AuthDestination.Welcome) }
+
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    AuthScreens(
+                        destination = destination,
+                        userRepository = userRepository,
+                        onDestinationChange = { destination = it }
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    CoegioPabloSaladanaTheme {
-        Greeting("Android")
     }
 }
