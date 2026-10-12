@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,11 +35,27 @@ import androidx.compose.ui.unit.dp
 import cl.duoc.coegio_pablo_saladana.data.UserRepository
 import cl.duoc.coegio_pablo_saladana.data.RutValidator
 import cl.duoc.coegio_pablo_saladana.data.UserRole
+import cl.duoc.coegio_pablo_saladana.ui.student.StudentDashboard
+import cl.duoc.coegio_pablo_saladana.ui.student.StudentEntryForm
+import cl.duoc.coegio_pablo_saladana.ui.student.StudentHistory
+import cl.duoc.coegio_pablo_saladana.ui.student.StudentNotebookDetail
+import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherCreateNotebook
+import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherDashboard
+import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherReviewEntries
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 enum class AuthDestination {
     Welcome,
     Login,
-    Register
+    Register,
+    StudentDashboard,
+    StudentNotebook,
+    StudentEntry,
+    StudentHistory,
+    TeacherDashboard,
+    TeacherCreateNotebook,
+    TeacherReviewEntries
 }
 
 @Composable
@@ -50,6 +68,35 @@ fun AuthScreens(
         AuthDestination.Welcome -> WelcomeScreen(onDestinationChange)
         AuthDestination.Login -> LoginScreen(userRepository, onDestinationChange)
         AuthDestination.Register -> RegisterScreen(userRepository, onDestinationChange)
+        AuthDestination.StudentDashboard -> StudentDashboard(
+            onLogout = { onDestinationChange(AuthDestination.Welcome) },
+            onOpenNotebook = { onDestinationChange(AuthDestination.StudentNotebook) },
+            onCreateEntry = { onDestinationChange(AuthDestination.StudentEntry) },
+            onOpenHistory = { onDestinationChange(AuthDestination.StudentHistory) }
+        )
+        AuthDestination.StudentNotebook -> StudentNotebookDetail(
+            onBack = { onDestinationChange(AuthDestination.StudentDashboard) },
+            onCreateEntry = { onDestinationChange(AuthDestination.StudentEntry) }
+        )
+        AuthDestination.StudentEntry -> StudentEntryForm(
+            onBack = { onDestinationChange(AuthDestination.StudentNotebook) },
+            onSaved = { onDestinationChange(AuthDestination.StudentHistory) }
+        )
+        AuthDestination.StudentHistory -> StudentHistory {
+            onDestinationChange(AuthDestination.StudentDashboard)
+        }
+        AuthDestination.TeacherDashboard -> TeacherDashboard(
+            onLogout = { onDestinationChange(AuthDestination.Welcome) },
+            onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) },
+            onReviewEntries = { onDestinationChange(AuthDestination.TeacherReviewEntries) }
+        )
+        AuthDestination.TeacherCreateNotebook -> TeacherCreateNotebook(
+            onBack = { onDestinationChange(AuthDestination.TeacherDashboard) },
+            onPublished = { onDestinationChange(AuthDestination.TeacherDashboard) }
+        )
+        AuthDestination.TeacherReviewEntries -> TeacherReviewEntries {
+            onDestinationChange(AuthDestination.TeacherDashboard)
+        }
     }
 }
 
@@ -88,6 +135,8 @@ private fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     AuthContainer {
         Text("Iniciar sesión", style = MaterialTheme.typography.headlineMedium)
@@ -119,17 +168,31 @@ private fun LoginScreen(
                 if (email.isBlank() || password.isBlank()) {
                     isError = true
                     message = "Completa tu correo y contraseña."
-                } else if (userRepository.login(email, password) == null) {
-                    isError = true
-                    message = "El correo o la contraseña no son correctos."
                 } else {
-                    isError = false
-                    message = "Inicio de sesión correcto. Próximamente verás tu bitácora."
+                    scope.launch {
+                        isLoading = true
+                        delay(500)
+                        val account = userRepository.login(email, password)
+                        if (account == null) {
+                            isError = true
+                            message = "El correo o la contraseña no son correctos."
+                        } else if (account.role == UserRole.Student) {
+                            onDestinationChange(AuthDestination.StudentDashboard)
+                        } else {
+                            onDestinationChange(AuthDestination.TeacherDashboard)
+                        }
+                        isLoading = false
+                    }
                 }
             },
+            enabled = !isLoading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Entrar")
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else {
+                Text("Entrar")
+            }
         }
 
         TextButton(onClick = { onDestinationChange(AuthDestination.Register) }) {
@@ -156,6 +219,8 @@ private fun RegisterScreen(
     var selectedRole by remember { mutableStateOf(UserRole.Student) }
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     AuthContainer {
         Text("Crear cuenta", style = MaterialTheme.typography.headlineMedium)
@@ -244,28 +309,40 @@ private fun RegisterScreen(
                         isError = true
                         message = "La contraseña debe tener al menos 6 caracteres."
                     }
-                    userRepository.register(
-                        firstName = firstName,
-                        middleName = middleName,
-                        paternalSurname = paternalSurname,
-                        maternalSurname = maternalSurname,
-                        rut = rut,
-                        email = email,
-                        password = password,
-                        role = selectedRole
-                    ) -> {
-                        isError = false
-                        message = "Cuenta creada. Ya puedes iniciar sesión."
-                    }
                     else -> {
-                        isError = true
-                        message = "Ya existe una cuenta con ese correo."
+                        scope.launch {
+                            isLoading = true
+                            delay(500)
+                            if (userRepository.register(
+                                    firstName = firstName,
+                                    middleName = middleName,
+                                    paternalSurname = paternalSurname,
+                                    maternalSurname = maternalSurname,
+                                    rut = rut,
+                                    email = email,
+                                    password = password,
+                                    role = selectedRole
+                                )
+                            ) {
+                                isError = false
+                                message = "Cuenta creada. Ya puedes iniciar sesión."
+                            } else {
+                                isError = true
+                                message = "Ya existe una cuenta con ese correo o RUT."
+                            }
+                            isLoading = false
+                        }
                     }
                 }
             },
+            enabled = !isLoading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Crear cuenta")
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else {
+                Text("Crear cuenta")
+            }
         }
 
         TextButton(onClick = { onDestinationChange(AuthDestination.Login) }) {
