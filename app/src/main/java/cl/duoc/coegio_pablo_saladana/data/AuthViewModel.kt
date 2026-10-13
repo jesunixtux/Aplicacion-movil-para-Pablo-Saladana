@@ -30,7 +30,7 @@ class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
         role: UserRole,
         gender: UserGender
     ): UserAccount? {
-        val created = userRepository.register(
+        return userRepository.register(
             firstName,
             middleName,
             paternalSurname,
@@ -41,6 +41,5 @@ class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
             role,
             gender
         )
-        return if (created) userRepository.login(email, password) else null
     }
 }

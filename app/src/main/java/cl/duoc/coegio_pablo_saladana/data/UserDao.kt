@@ -15,4 +15,7 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE rut = :rut LIMIT 1")
     suspend fun findByRut(rut: String): UserEntity?
+
+    @Query("UPDATE users SET passwordHash = :newHash WHERE id = :id AND passwordHash = :oldHash")
+    suspend fun updatePasswordHash(id: Long, oldHash: String, newHash: String): Int
 }

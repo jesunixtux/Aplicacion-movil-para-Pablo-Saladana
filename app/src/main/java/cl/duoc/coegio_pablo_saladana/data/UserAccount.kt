@@ -19,8 +19,7 @@ data class UserAccount(
     val rut: String,
     val email: String,
     val role: UserRole,
-    val gender: UserGender,
-    val passwordHash: String
+    val gender: UserGender
 ) {
     val fullName: String
         get() = listOf(firstName, middleName, paternalSurname, maternalSurname)

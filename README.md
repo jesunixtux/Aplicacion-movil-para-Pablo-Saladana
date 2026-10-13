@@ -9,8 +9,9 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 - Validación y formateo de RUT chileno, incluyendo dígito verificador numérico o `K`.
 - Registro de género masculino, femenino u otro para personalizar el saludo.
 - Usuarios y credenciales guardados localmente en SQLite mediante Room.
-- Creación automática de la base de datos `bitacora.db` al iniciar la aplicación.
+- Creación automática de la base de datos `bitacora.db` al registrar o consultar una cuenta.
 - Sesión activa persistente y restauración automática del dashboard correspondiente.
+- Fotos de perfil recortables, guardadas localmente en formato cuadrado de 64 × 64 píxeles.
 - Dashboard de estudiante con bitácoras activas e historial simulado.
 - Flujo visual de detalle de bitácora y creación de registros.
 - Dashboard docente con indicadores, creación de bitácora y revisión de aportes simulados.
@@ -70,6 +71,23 @@ El APK de desarrollo se genera en:
 SQLite está incluido en Android. El proyecto usa Room como capa de acceso tipado y verificable sobre SQLite. Las dependencias ya están declaradas en `gradle/libs.versions.toml` y el compilador de Room se ejecuta mediante KSP.
 
 La base de datos se crea automáticamente mediante `AppDatabase`. Actualmente contiene la tabla `users`, su `UserDao` y el repositorio de autenticación. La versión actual incluye una migración automática para agregar el género a cuentas existentes, usando `Other` como valor predeterminado. Las demás entidades se agregarán con nuevas migraciones de Room cuando se implementen cursos, asignaturas, bitácoras, registros, evidencias, retroalimentación e indicadores.
+
+Las contraseñas nuevas se almacenan con una sal única y PBKDF2. Se usa HMAC-SHA-256 cuando está disponible y HMAC-SHA-1 en Android 7 para mantener compatibilidad con la versión mínima. Las cuentas anteriores con hash SHA-256 siguen funcionando: el hash se actualiza al iniciar sesión correctamente. El hash no se expone en el modelo que usa la interfaz.
+
+## Fotos de perfil
+
+Las fotos elegidas desde galería o cámara pasan por un editor con giro, zoom y ajuste horizontal o vertical. Al guardar, la aplicación recorta la selección en formato cuadrado y genera un archivo JPEG de 64 × 64 píxeles. Las imágenes grandes se reducen al cargarlas en el editor para evitar usar memoria innecesaria. Las fotos guardadas por versiones anteriores se convierten automáticamente a 64 × 64 al cargar el perfil.
+
+Los valores visuales se pueden cambiar en `ProfilePhotoDefaults`, dentro de `ui/profile/ProfileAvatar.kt`:
+
+- `AvatarSize`: tamaño del avatar en pantalla.
+- `EditorPreviewSize`: tamaño de la vista previa.
+- `AnimationDurationMillis`: duración de las animaciones.
+- `AvatarDecodeMaxImagePixels`: resolución máxima usada al mostrar avatares antiguos.
+- `EditorMaxImagePixels`: resolución máxima usada por el editor.
+- `MaxZoom`: ampliación máxima del recorte.
+
+La resolución del archivo final se cambia mediante `PHOTO_SIZE_PIXELS` en `data/ProfilePhotoStorage.kt`.
 
 ## Datos de prueba
 

@@ -1,7 +1,8 @@
 package cl.duoc.coegio_pablo_saladana.data
 
 import android.content.Context
-import java.security.MessageDigest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class UserRepository(context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -17,13 +18,14 @@ class UserRepository(context: Context) {
         password: String,
         role: UserRole,
         gender: UserGender
-    ): Boolean {
+    ): UserAccount? {
         val normalizedEmail = email.trim().lowercase()
         val normalizedRut = rut.trim().uppercase()
         if (userDao.findByEmail(normalizedEmail) != null || userDao.findByRut(normalizedRut) != null) {
-            return false
+            return null
         }
 
+        val passwordHash = withContext(Dispatchers.Default) { PasswordHasher.create(password) }
         val user = UserEntity(
             firstName = firstName.trim(),
             middleName = middleName.trim(),
@@ -33,15 +35,23 @@ class UserRepository(context: Context) {
             email = normalizedEmail,
             role = role.name,
             gender = gender.name,
-            passwordHash = hash(password)
+            passwordHash = passwordHash
         )
-        return userDao.insert(user) != -1L
+        val id = userDao.insert(user)
+        return if (id == -1L) null else user.copy(id = id).toUserAccount()
     }
 
     suspend fun login(email: String, password: String): UserAccount? {
         val normalizedEmail = email.trim().lowercase()
         val user = userDao.findByEmail(normalizedEmail) ?: return null
-        if (user.passwordHash != hash(password)) return null
+        val verified = withContext(Dispatchers.Default) {
+            PasswordHasher.verify(password, user.passwordHash)
+        }
+        if (!verified) return null
+        if (PasswordHasher.isLegacyHash(user.passwordHash)) {
+            val upgradedHash = withContext(Dispatchers.Default) { PasswordHasher.create(password) }
+            userDao.updatePasswordHash(user.id, user.passwordHash, upgradedHash)
+        }
         return user.toUserAccount()
     }
 
@@ -53,7 +63,9 @@ class UserRepository(context: Context) {
 
     suspend fun getActiveSession(): UserAccount? {
         val email = preferences.getString(ACTIVE_SESSION_KEY, null) ?: return null
-        return userDao.findByEmail(email.trim().lowercase())?.toUserAccount()
+        val account = userDao.findByEmail(email.trim().lowercase())?.toUserAccount()
+        if (account == null) clearSession()
+        return account
     }
 
     fun clearSession() {
@@ -71,15 +83,8 @@ class UserRepository(context: Context) {
             rut = rut,
             email = email,
             role = UserRole.valueOf(role),
-            gender = runCatching { UserGender.valueOf(gender) }.getOrDefault(UserGender.Other),
-            passwordHash = passwordHash
+            gender = runCatching { UserGender.valueOf(gender) }.getOrDefault(UserGender.Other)
         )
-    }
-
-    private fun hash(value: String): String {
-        return MessageDigest.getInstance("SHA-256")
-            .digest(value.toByteArray())
-            .joinToString("") { byte -> "%02x".format(byte) }
     }
 
     private companion object {

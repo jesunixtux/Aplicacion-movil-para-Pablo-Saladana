@@ -90,24 +90,6 @@ class MainActivity : ComponentActivity() {
                                 authViewModel.saveSession(it)
                                 profilePhotoUri = profilePhotoStorage.uriFor(it.email)
                             },
-                            onPhotoSelected = { selectedUri ->
-                                if (selectedUri != null) {
-                                    currentAccount?.let { account ->
-                                        profilePhotoStorage.save(account.email, selectedUri)?.let { savedUri ->
-                                            profilePhotoUri = savedUri
-                                        }
-                                    }
-                                }
-                            },
-                            onCameraPhotoSelected = { bitmap ->
-                                if (bitmap != null) {
-                                    currentAccount?.let { account ->
-                                        profilePhotoStorage.save(account.email, bitmap)?.let { savedUri ->
-                                            profilePhotoUri = savedUri
-                                        }
-                                    }
-                                }
-                            },
                             onPhotoEdited = { bitmap: Bitmap ->
                                 currentAccount?.let { account ->
                                     profilePhotoStorage.save(account.email, bitmap)?.let { savedUri ->

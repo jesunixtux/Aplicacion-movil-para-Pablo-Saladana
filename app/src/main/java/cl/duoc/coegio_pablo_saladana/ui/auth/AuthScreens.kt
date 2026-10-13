@@ -41,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import cl.duoc.coegio_pablo_saladana.data.AuthViewModel
+import cl.duoc.coegio_pablo_saladana.data.EmailValidator
 import cl.duoc.coegio_pablo_saladana.data.RutValidator
 import cl.duoc.coegio_pablo_saladana.data.UserAccount
 import cl.duoc.coegio_pablo_saladana.data.PersonNameValidator
@@ -79,8 +80,6 @@ fun AuthScreens(
     profilePhotoUri: Uri?,
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit,
-    onPhotoSelected: (Uri?) -> Unit,
-    onCameraPhotoSelected: (Bitmap?) -> Unit,
     onPhotoEdited: (Bitmap) -> Unit,
     onUserLoggedOut: () -> Unit
 ) {
@@ -142,8 +141,6 @@ fun AuthScreens(
                     }
                 )
             },
-            onPhotoSelected = onPhotoSelected,
-            onCameraPhotoSelected = onCameraPhotoSelected,
             onPhotoEdited = onPhotoEdited,
             onLogout = onUserLoggedOut
         )
@@ -361,10 +358,10 @@ private fun RegisterScreen(
             onValueChange = { email = it; message = null },
             label = { Text("Correo electrónico") },
             singleLine = true,
-            isError = attemptedSubmit && (email.isBlank() || !email.contains("@")),
+            isError = attemptedSubmit && (email.isBlank() || !EmailValidator.isValid(email)),
             supportingText = {
                 if (attemptedSubmit && email.isBlank()) Text("Ingresa tu correo electrónico.")
-                else if (attemptedSubmit && !email.contains("@")) Text("Ingresa un correo válido.")
+                else if (attemptedSubmit && !EmailValidator.isValid(email)) Text("Ingresa un correo válido.")
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth()
@@ -449,7 +446,7 @@ private fun RegisterScreen(
                         isError = true
                         message = "Ingresa un RUT válido, por ejemplo 12.345.678-5 o 7.654.321-K."
                     }
-                    !email.contains("@") -> {
+                    !EmailValidator.isValid(email) -> {
                         isError = true
                         message = "Ingresa un correo válido."
                     }
@@ -500,7 +497,7 @@ private fun RegisterScreen(
                 PersonNameValidator.isValid(paternalSurname) &&
                 PersonNameValidator.isValid(maternalSurname) &&
                 RutValidator.isValid(rut) &&
-                email.contains("@") &&
+                EmailValidator.isValid(email) &&
                 password.length >= 8 &&
                 confirmPassword == password,
             modifier = Modifier.fillMaxWidth()
