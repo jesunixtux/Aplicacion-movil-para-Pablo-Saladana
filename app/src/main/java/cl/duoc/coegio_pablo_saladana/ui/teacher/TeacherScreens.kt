@@ -35,6 +35,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TeacherDashboard(
+    fullName: String,
+    rut: String,
     onLogout: () -> Unit,
     onCreateNotebook: () -> Unit,
     onReviewEntries: () -> Unit
@@ -52,7 +54,8 @@ fun TeacherDashboard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text("Hola, docente", style = MaterialTheme.typography.headlineSmall)
+                Text("Hola, $fullName", style = MaterialTheme.typography.headlineSmall)
+                Text("RUT: $rut", style = MaterialTheme.typography.labelLarge)
                 Text("Supervisa el aprendizaje de tus cursos desde un solo lugar.")
             }
             item {

@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import cl.duoc.coegio_pablo_saladana.data.UserAccount
 import cl.duoc.coegio_pablo_saladana.data.UserRepository
 import cl.duoc.coegio_pablo_saladana.ui.auth.AuthDestination
 import cl.duoc.coegio_pablo_saladana.ui.auth.AuthScreens
@@ -26,12 +27,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             CoegioPabloSaladanaTheme {
                 var destination by remember { mutableStateOf(AuthDestination.Welcome) }
+                var currentAccount by remember { mutableStateOf<UserAccount?>(null) }
 
                 Surface(modifier = Modifier.fillMaxSize()) {
                     AuthScreens(
                         destination = destination,
                         userRepository = userRepository,
-                        onDestinationChange = { destination = it }
+                        currentAccount = currentAccount,
+                        onDestinationChange = { destination = it },
+                        onUserLoggedIn = { currentAccount = it },
+                        onUserLoggedOut = {
+                            currentAccount = null
+                            destination = AuthDestination.Welcome
+                        }
                     )
                 }
             }

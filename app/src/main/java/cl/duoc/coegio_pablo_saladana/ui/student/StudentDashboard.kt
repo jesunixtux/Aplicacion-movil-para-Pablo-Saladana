@@ -36,6 +36,8 @@ private data class MockNotebook(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentDashboard(
+    fullName: String,
+    rut: String,
     onLogout: () -> Unit,
     onOpenNotebook: () -> Unit,
     onCreateEntry: () -> Unit,
@@ -85,7 +87,8 @@ fun StudentDashboard(
         ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Hola, estudiante", style = MaterialTheme.typography.headlineSmall)
+                    Text("Hola, $fullName", style = MaterialTheme.typography.headlineSmall)
+                    Text("RUT: $rut", style = MaterialTheme.typography.labelLarge)
                     Text(
                         "Aquí puedes revisar tus bitácoras y registrar lo aprendido en clases.",
                         style = MaterialTheme.typography.bodyLarge

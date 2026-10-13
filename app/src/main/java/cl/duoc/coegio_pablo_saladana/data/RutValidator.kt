@@ -2,22 +2,39 @@ package cl.duoc.coegio_pablo_saladana.data
 
 object RutValidator {
     fun format(value: String): String {
-        val cleanValue = value.uppercase().filter { it.isDigit() || it == 'K' }
-        if (cleanValue.length <= 1) return cleanValue
+        val upperValue = value.uppercase()
+        val hasHyphen = upperValue.contains('-')
+        val cleanValue = upperValue.filter { it.isDigit() || it == 'K' }
+        if (cleanValue.isEmpty()) return ""
 
-        val body = cleanValue.dropLast(1).take(8)
-        val verifier = cleanValue.last()
+        val body: String
+        val verifier: Char?
+        if (hasHyphen) {
+            val parts = upperValue.split('-', limit = 2)
+            body = parts.first().filter(Char::isDigit).take(8)
+            verifier = parts.getOrNull(1)?.firstOrNull { it.isDigit() || it == 'K' }
+        } else if (cleanValue.last() == 'K') {
+            body = cleanValue.dropLast(1).take(8)
+            verifier = 'K'
+        } else if (cleanValue.length > 8) {
+            body = cleanValue.take(8)
+            verifier = cleanValue[8]
+        } else {
+            body = cleanValue.take(8)
+            verifier = null
+        }
+
         val groupedBody = body.reversed().chunked(3).joinToString(".").reversed()
-        return "$groupedBody-$verifier"
+        return if (verifier == null) groupedBody else "$groupedBody-$verifier"
     }
 
     fun isValid(value: String): Boolean {
         val cleanValue = value.uppercase().filter { it.isDigit() || it == 'K' }
-        if (cleanValue.length !in 8..9) return false
+        if (cleanValue.length !in 2..9) return false
 
         val body = cleanValue.dropLast(1)
         val verifier = cleanValue.last()
-        if (body.any { !it.isDigit() } || body.all { it == '0' }) return false
+        if (body.length !in 1..8 || body.any { !it.isDigit() } || body.all { it == '0' }) return false
 
         var multiplier = 2
         var sum = 0

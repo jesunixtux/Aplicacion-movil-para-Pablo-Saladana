@@ -34,6 +34,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import cl.duoc.coegio_pablo_saladana.data.UserRepository
 import cl.duoc.coegio_pablo_saladana.data.RutValidator
+import cl.duoc.coegio_pablo_saladana.data.UserAccount
+import cl.duoc.coegio_pablo_saladana.data.PersonNameValidator
 import cl.duoc.coegio_pablo_saladana.data.UserRole
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentDashboard
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentEntryForm
@@ -62,14 +64,19 @@ enum class AuthDestination {
 fun AuthScreens(
     destination: AuthDestination,
     userRepository: UserRepository,
-    onDestinationChange: (AuthDestination) -> Unit
+    currentAccount: UserAccount?,
+    onDestinationChange: (AuthDestination) -> Unit,
+    onUserLoggedIn: (UserAccount) -> Unit,
+    onUserLoggedOut: () -> Unit
 ) {
     when (destination) {
         AuthDestination.Welcome -> WelcomeScreen(onDestinationChange)
-        AuthDestination.Login -> LoginScreen(userRepository, onDestinationChange)
-        AuthDestination.Register -> RegisterScreen(userRepository, onDestinationChange)
+        AuthDestination.Login -> LoginScreen(userRepository, onDestinationChange, onUserLoggedIn)
+        AuthDestination.Register -> RegisterScreen(userRepository, onDestinationChange, onUserLoggedIn)
         AuthDestination.StudentDashboard -> StudentDashboard(
-            onLogout = { onDestinationChange(AuthDestination.Welcome) },
+            fullName = currentAccount?.fullName ?: "Estudiante",
+            rut = currentAccount?.rut ?: "RUT no disponible",
+            onLogout = onUserLoggedOut,
             onOpenNotebook = { onDestinationChange(AuthDestination.StudentNotebook) },
             onCreateEntry = { onDestinationChange(AuthDestination.StudentEntry) },
             onOpenHistory = { onDestinationChange(AuthDestination.StudentHistory) }
@@ -86,7 +93,9 @@ fun AuthScreens(
             onDestinationChange(AuthDestination.StudentDashboard)
         }
         AuthDestination.TeacherDashboard -> TeacherDashboard(
-            onLogout = { onDestinationChange(AuthDestination.Welcome) },
+            fullName = currentAccount?.fullName ?: "Docente",
+            rut = currentAccount?.rut ?: "RUT no disponible",
+            onLogout = onUserLoggedOut,
             onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) },
             onReviewEntries = { onDestinationChange(AuthDestination.TeacherReviewEntries) }
         )
@@ -129,7 +138,8 @@ private fun WelcomeScreen(onDestinationChange: (AuthDestination) -> Unit) {
 @Composable
 private fun LoginScreen(
     userRepository: UserRepository,
-    onDestinationChange: (AuthDestination) -> Unit
+    onDestinationChange: (AuthDestination) -> Unit,
+    onUserLoggedIn: (UserAccount) -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -177,8 +187,10 @@ private fun LoginScreen(
                             isError = true
                             message = "El correo o la contraseña no son correctos."
                         } else if (account.role == UserRole.Student) {
+                            onUserLoggedIn(account)
                             onDestinationChange(AuthDestination.StudentDashboard)
                         } else {
+                            onUserLoggedIn(account)
                             onDestinationChange(AuthDestination.TeacherDashboard)
                         }
                         isLoading = false
@@ -207,7 +219,8 @@ private fun LoginScreen(
 @Composable
 private fun RegisterScreen(
     userRepository: UserRepository,
-    onDestinationChange: (AuthDestination) -> Unit
+    onDestinationChange: (AuthDestination) -> Unit,
+    onUserLoggedIn: (UserAccount) -> Unit
 ) {
     var firstName by remember { mutableStateOf("") }
     var middleName by remember { mutableStateOf("") }
@@ -228,28 +241,28 @@ private fun RegisterScreen(
 
         OutlinedTextField(
             value = firstName,
-            onValueChange = { firstName = it; message = null },
+            onValueChange = { firstName = PersonNameValidator.sanitize(it); message = null },
             label = { Text("Nombre") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = middleName,
-            onValueChange = { middleName = it; message = null },
+            onValueChange = { middleName = PersonNameValidator.sanitize(it); message = null },
             label = { Text("Segundo nombre") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = paternalSurname,
-            onValueChange = { paternalSurname = it; message = null },
+            onValueChange = { paternalSurname = PersonNameValidator.sanitize(it); message = null },
             label = { Text("Apellido paterno") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = maternalSurname,
-            onValueChange = { maternalSurname = it; message = null },
+            onValueChange = { maternalSurname = PersonNameValidator.sanitize(it); message = null },
             label = { Text("Apellido materno") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -297,6 +310,13 @@ private fun RegisterScreen(
                         isError = true
                         message = "Completa todos los campos."
                     }
+                    !PersonNameValidator.isValid(firstName) ||
+                        (middleName.isNotBlank() && !PersonNameValidator.isValid(middleName)) ||
+                        !PersonNameValidator.isValid(paternalSurname) ||
+                        !PersonNameValidator.isValid(maternalSurname) -> {
+                        isError = true
+                        message = "Los nombres y apellidos solo pueden contener letras."
+                    }
                     !RutValidator.isValid(rut) -> {
                         isError = true
                         message = "Ingresa un RUT válido, por ejemplo 12.345.678-5 o 7.654.321-K."
@@ -305,15 +325,15 @@ private fun RegisterScreen(
                         isError = true
                         message = "Ingresa un correo válido."
                     }
-                    password.length < 6 -> {
+                    password.length < 8 -> {
                         isError = true
-                        message = "La contraseña debe tener al menos 6 caracteres."
+                        message = "La contraseña debe tener al menos 8 caracteres."
                     }
                     else -> {
                         scope.launch {
                             isLoading = true
                             delay(500)
-                            if (userRepository.register(
+                            val accountCreated = userRepository.register(
                                     firstName = firstName,
                                     middleName = middleName,
                                     paternalSurname = paternalSurname,
@@ -323,9 +343,21 @@ private fun RegisterScreen(
                                     password = password,
                                     role = selectedRole
                                 )
-                            ) {
-                                isError = false
-                                message = "Cuenta creada. Ya puedes iniciar sesión."
+                            if (accountCreated) {
+                                val account = userRepository.login(email, password)
+                                if (account != null) {
+                                    onUserLoggedIn(account)
+                                    onDestinationChange(
+                                        if (account.role == UserRole.Student) {
+                                            AuthDestination.StudentDashboard
+                                        } else {
+                                            AuthDestination.TeacherDashboard
+                                        }
+                                    )
+                                } else {
+                                    isError = true
+                                    message = "La cuenta fue creada, pero no se pudo iniciar sesión."
+                                }
                             } else {
                                 isError = true
                                 message = "Ya existe una cuenta con ese correo o RUT."
