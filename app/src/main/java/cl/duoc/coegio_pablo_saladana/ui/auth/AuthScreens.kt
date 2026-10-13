@@ -1,5 +1,7 @@
 package cl.duoc.coegio_pablo_saladana.ui.auth
 
+import android.graphics.Bitmap
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +44,7 @@ import cl.duoc.coegio_pablo_saladana.data.AuthViewModel
 import cl.duoc.coegio_pablo_saladana.data.RutValidator
 import cl.duoc.coegio_pablo_saladana.data.UserAccount
 import cl.duoc.coegio_pablo_saladana.data.PersonNameValidator
+import cl.duoc.coegio_pablo_saladana.data.UserGender
 import cl.duoc.coegio_pablo_saladana.data.UserRole
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentDashboard
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentEntryForm
@@ -73,8 +76,12 @@ fun AuthScreens(
     destination: AuthDestination,
     authViewModel: AuthViewModel,
     currentAccount: UserAccount?,
+    profilePhotoUri: Uri?,
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit,
+    onPhotoSelected: (Uri?) -> Unit,
+    onCameraPhotoSelected: (Bitmap?) -> Unit,
+    onPhotoEdited: (Bitmap) -> Unit,
     onUserLoggedOut: () -> Unit
 ) {
     AnimatedContent(targetState = destination, label = "auth_navigation") { currentDestination ->
@@ -85,6 +92,8 @@ fun AuthScreens(
         AuthDestination.StudentDashboard -> StudentDashboard(
             fullName = currentAccount?.fullName ?: "Estudiante",
             rut = currentAccount?.rut ?: "RUT no disponible",
+            gender = currentAccount?.gender ?: UserGender.Other,
+            profilePhotoUri = profilePhotoUri,
             onLogout = onUserLoggedOut,
             onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
             onOpenNotebook = { onDestinationChange(AuthDestination.StudentNotebook) },
@@ -105,6 +114,8 @@ fun AuthScreens(
         AuthDestination.TeacherDashboard -> TeacherDashboard(
             fullName = currentAccount?.fullName ?: "Docente",
             rut = currentAccount?.rut ?: "RUT no disponible",
+            gender = currentAccount?.gender ?: UserGender.Other,
+            profilePhotoUri = profilePhotoUri,
             onLogout = onUserLoggedOut,
             onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
             onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) },
@@ -121,6 +132,7 @@ fun AuthScreens(
             fullName = currentAccount?.fullName ?: "Usuario",
             rut = currentAccount?.rut ?: "RUT no disponible",
             role = currentAccount?.role ?: UserRole.Student,
+            photoUri = profilePhotoUri,
             onBack = {
                 onDestinationChange(
                     if (currentAccount?.role == UserRole.Teacher) {
@@ -130,6 +142,9 @@ fun AuthScreens(
                     }
                 )
             },
+            onPhotoSelected = onPhotoSelected,
+            onCameraPhotoSelected = onCameraPhotoSelected,
+            onPhotoEdited = onPhotoEdited,
             onLogout = onUserLoggedOut
         )
     }
@@ -278,6 +293,7 @@ private fun RegisterScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var selectedRole by remember { mutableStateOf(UserRole.Student) }
+    var selectedGender by remember { mutableStateOf(UserGender.Other) }
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
@@ -402,6 +418,13 @@ private fun RegisterScreen(
             RoleOption("Docente", UserRole.Teacher, selectedRole) { selectedRole = it }
         }
 
+        Text("Género", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            GenderOption("Masculino", UserGender.Male, selectedGender) { selectedGender = it }
+            GenderOption("Femenino", UserGender.Female, selectedGender) { selectedGender = it }
+            GenderOption("Otro", UserGender.Other, selectedGender) { selectedGender = it }
+        }
+
         message?.let {
             Text(it, color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
         }
@@ -450,7 +473,8 @@ private fun RegisterScreen(
                                     rut = rut,
                                     email = email,
                                     password = password,
-                                    role = selectedRole
+                                    role = selectedRole,
+                                    gender = selectedGender
                                 )
                             if (account != null) {
                                 onUserLoggedIn(account)
@@ -506,6 +530,19 @@ private fun RoleOption(
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         RadioButton(selected = selectedRole == role, onClick = { onSelected(role) })
+        Text(label)
+    }
+}
+
+@Composable
+private fun GenderOption(
+    label: String,
+    gender: UserGender,
+    selectedGender: UserGender,
+    onSelected: (UserGender) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        RadioButton(selected = selectedGender == gender, onClick = { onSelected(gender) })
         Text(label)
     }
 }

@@ -1,5 +1,6 @@
 package cl.duoc.coegio_pablo_saladana.ui.teacher
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +30,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cl.duoc.coegio_pablo_saladana.data.UserGender
+import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -37,6 +40,8 @@ import kotlinx.coroutines.launch
 fun TeacherDashboard(
     fullName: String,
     rut: String,
+    gender: UserGender,
+    profilePhotoUri: Uri?,
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
     onCreateNotebook: () -> Unit,
@@ -58,7 +63,11 @@ fun TeacherDashboard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text("Hola, $fullName", style = MaterialTheme.typography.headlineSmall)
+                ProfileAvatar(
+                    photoUri = profilePhotoUri,
+                    initials = fullName.take(1).uppercase()
+                )
+                Text(greetingFor(fullName, gender), style = MaterialTheme.typography.headlineSmall)
                 Text("RUT: $rut", style = MaterialTheme.typography.labelLarge)
                 Text("Supervisa el aprendizaje de tus cursos desde un solo lugar.")
             }
@@ -80,6 +89,14 @@ fun TeacherDashboard(
             }
             item { Button(onClick = onCreateNotebook, modifier = Modifier.fillMaxWidth()) { Text("Crear nueva bitácora") } }
         }
+    }
+}
+
+private fun greetingFor(fullName: String, gender: UserGender): String {
+    return when (gender) {
+        UserGender.Male -> "Hola Sr. $fullName"
+        UserGender.Female -> "Hola Sra. $fullName"
+        UserGender.Other -> "Hola, $fullName"
     }
 }
 

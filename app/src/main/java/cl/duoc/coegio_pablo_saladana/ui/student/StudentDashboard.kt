@@ -1,5 +1,6 @@
 package cl.duoc.coegio_pablo_saladana.ui.student
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cl.duoc.coegio_pablo_saladana.data.UserGender
+import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
 
 private data class MockNotebook(
     val subject: String,
@@ -38,6 +41,8 @@ private data class MockNotebook(
 fun StudentDashboard(
     fullName: String,
     rut: String,
+    gender: UserGender,
+    profilePhotoUri: Uri?,
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenNotebook: () -> Unit,
@@ -91,7 +96,11 @@ fun StudentDashboard(
         ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Hola, $fullName", style = MaterialTheme.typography.headlineSmall)
+                    ProfileAvatar(
+                        photoUri = profilePhotoUri,
+                        initials = fullName.take(1).uppercase()
+                    )
+                    Text(greetingFor(fullName, gender), style = MaterialTheme.typography.headlineSmall)
                     Text("RUT: $rut", style = MaterialTheme.typography.labelLarge)
                     Text(
                         "Aquí puedes revisar tus bitácoras y registrar lo aprendido en clases.",
@@ -114,6 +123,14 @@ fun StudentDashboard(
                 NotebookCard(notebook, onOpenNotebook, onCreateEntry)
             }
         }
+    }
+}
+
+private fun greetingFor(fullName: String, gender: UserGender): String {
+    return when (gender) {
+        UserGender.Male -> "Hola Sr. $fullName"
+        UserGender.Female -> "Hola Sra. $fullName"
+        UserGender.Other -> "Hola, $fullName"
     }
 }
 

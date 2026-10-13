@@ -5,6 +5,12 @@ enum class UserRole {
     Student
 }
 
+enum class UserGender {
+    Male,
+    Female,
+    Other
+}
+
 data class UserAccount(
     val firstName: String,
     val middleName: String,
@@ -13,6 +19,7 @@ data class UserAccount(
     val rut: String,
     val email: String,
     val role: UserRole,
+    val gender: UserGender,
     val passwordHash: String
 ) {
     val fullName: String

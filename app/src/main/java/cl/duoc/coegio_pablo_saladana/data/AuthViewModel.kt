@@ -3,11 +3,23 @@ package cl.duoc.coegio_pablo_saladana.data
 import androidx.lifecycle.ViewModel
 
 class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
-    fun login(email: String, password: String): UserAccount? {
+    suspend fun login(email: String, password: String): UserAccount? {
         return userRepository.login(email, password)
     }
 
-    fun register(
+    suspend fun restoreSession(): UserAccount? {
+        return userRepository.getActiveSession()
+    }
+
+    fun saveSession(account: UserAccount) {
+        userRepository.saveSession(account)
+    }
+
+    fun clearSession() {
+        userRepository.clearSession()
+    }
+
+    suspend fun register(
         firstName: String,
         middleName: String,
         paternalSurname: String,
@@ -15,7 +27,8 @@ class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
         rut: String,
         email: String,
         password: String,
-        role: UserRole
+        role: UserRole,
+        gender: UserGender
     ): UserAccount? {
         val created = userRepository.register(
             firstName,
@@ -25,7 +38,8 @@ class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
             rut,
             email,
             password,
-            role
+            role,
+            gender
         )
         return if (created) userRepository.login(email, password) else null
     }

@@ -7,8 +7,10 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 - Pantalla inicial con acceso a registro e inicio de sesión.
 - Registro manual de cuentas ficticias como estudiante o docente.
 - Validación y formateo de RUT chileno, incluyendo dígito verificador numérico o `K`.
-- Credenciales guardadas localmente para el MVP.
-- Room preparado como dependencia, pero todavía no utilizado en la maqueta.
+- Registro de género masculino, femenino u otro para personalizar el saludo.
+- Usuarios y credenciales guardados localmente en SQLite mediante Room.
+- Creación automática de la base de datos `bitacora.db` al iniciar la aplicación.
+- Sesión activa persistente y restauración automática del dashboard correspondiente.
 - Dashboard de estudiante con bitácoras activas e historial simulado.
 - Flujo visual de detalle de bitácora y creación de registros.
 - Dashboard docente con indicadores, creación de bitácora y revisión de aportes simulados.
@@ -67,15 +69,19 @@ El APK de desarrollo se genera en:
 
 SQLite está incluido en Android. El proyecto usa Room como capa de acceso tipado y verificable sobre SQLite. Las dependencias ya están declaradas en `gradle/libs.versions.toml` y el compilador de Room se ejecuta mediante KSP.
 
-La base de datos se implementará después de cerrar la maqueta visual, mediante entidades, DAOs y repositorios para usuarios, cursos, asignaturas, bitácoras, registros, evidencias, retroalimentación e indicadores.
+La base de datos se crea automáticamente mediante `AppDatabase`. Actualmente contiene la tabla `users`, su `UserDao` y el repositorio de autenticación. La versión actual incluye una migración automática para agregar el género a cuentas existentes, usando `Other` como valor predeterminado. Las demás entidades se agregarán con nuevas migraciones de Room cuando se implementen cursos, asignaturas, bitácoras, registros, evidencias, retroalimentación e indicadores.
 
 ## Datos de prueba
 
 Usar únicamente datos ficticios. No ingresar RUT, nombres, correos, fotografías ni credenciales reales de estudiantes o docentes.
 
-Las cuentas de prueba deben crearse manualmente desde **Registrarse** y pueden eliminarse borrando los datos de la aplicación o desinstalándola del emulador.
+Las cuentas de prueba deben crearse manualmente desde **Registrarse** y pueden eliminarse borrando los datos de la aplicación o desinstalándola del emulador. Para limpiar los datos del emulador:
 
-## Lista de pruebas antes de SQLite
+```bash
+adb shell pm clear cl.duoc.coegio_pablo_saladana
+```
+
+## Lista de pruebas de autenticación y SQLite
 
 ### Inicio y navegación
 

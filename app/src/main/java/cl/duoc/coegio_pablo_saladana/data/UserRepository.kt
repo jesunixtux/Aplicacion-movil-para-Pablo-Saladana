@@ -5,8 +5,9 @@ import java.security.MessageDigest
 
 class UserRepository(context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private val userDao = AppDatabase.getInstance(context).userDao()
 
-    fun register(
+    suspend fun register(
         firstName: String,
         middleName: String,
         paternalSurname: String,
@@ -14,44 +15,64 @@ class UserRepository(context: Context) {
         rut: String,
         email: String,
         password: String,
-        role: UserRole
+        role: UserRole,
+        gender: UserGender
     ): Boolean {
         val normalizedEmail = email.trim().lowercase()
         val normalizedRut = rut.trim().uppercase()
-        if (preferences.contains(userKey(normalizedEmail)) || preferences.contains(rutKey(normalizedRut))) {
+        if (userDao.findByEmail(normalizedEmail) != null || userDao.findByRut(normalizedRut) != null) {
             return false
         }
 
-        preferences.edit()
-            .putString(userKey(normalizedEmail), firstName.trim())
-            .putString(middleNameKey(normalizedEmail), middleName.trim())
-            .putString(paternalSurnameKey(normalizedEmail), paternalSurname.trim())
-            .putString(maternalSurnameKey(normalizedEmail), maternalSurname.trim())
-            .putString(rutKey(normalizedRut), normalizedEmail)
-            .putString(userRutKey(normalizedEmail), normalizedRut)
-            .putString(roleKey(normalizedEmail), role.name)
-            .putString(passwordKey(normalizedEmail), hash(password))
-            .apply()
-
-        return true
+        val user = UserEntity(
+            firstName = firstName.trim(),
+            middleName = middleName.trim(),
+            paternalSurname = paternalSurname.trim(),
+            maternalSurname = maternalSurname.trim(),
+            rut = normalizedRut,
+            email = normalizedEmail,
+            role = role.name,
+            gender = gender.name,
+            passwordHash = hash(password)
+        )
+        return userDao.insert(user) != -1L
     }
 
-    fun login(email: String, password: String): UserAccount? {
+    suspend fun login(email: String, password: String): UserAccount? {
         val normalizedEmail = email.trim().lowercase()
-        val firstName = preferences.getString(userKey(normalizedEmail), null) ?: return null
-        val storedHash = preferences.getString(passwordKey(normalizedEmail), null) ?: return null
-        if (storedHash != hash(password)) return null
+        val user = userDao.findByEmail(normalizedEmail) ?: return null
+        if (user.passwordHash != hash(password)) return null
+        return user.toUserAccount()
+    }
 
-        val roleName = preferences.getString(roleKey(normalizedEmail), UserRole.Student.name)
+    fun saveSession(account: UserAccount) {
+        preferences.edit()
+            .putString(ACTIVE_SESSION_KEY, account.email)
+            .apply()
+    }
+
+    suspend fun getActiveSession(): UserAccount? {
+        val email = preferences.getString(ACTIVE_SESSION_KEY, null) ?: return null
+        return userDao.findByEmail(email.trim().lowercase())?.toUserAccount()
+    }
+
+    fun clearSession() {
+        preferences.edit()
+            .remove(ACTIVE_SESSION_KEY)
+            .apply()
+    }
+
+    private fun UserEntity.toUserAccount(): UserAccount {
         return UserAccount(
             firstName = firstName,
-            middleName = preferences.getString(middleNameKey(normalizedEmail), "") ?: "",
-            paternalSurname = preferences.getString(paternalSurnameKey(normalizedEmail), "") ?: "",
-            maternalSurname = preferences.getString(maternalSurnameKey(normalizedEmail), "") ?: "",
-            rut = preferences.getString(userRutKey(normalizedEmail), "") ?: "",
-            email = normalizedEmail,
-            role = UserRole.valueOf(roleName ?: UserRole.Student.name),
-            passwordHash = storedHash
+            middleName = middleName,
+            paternalSurname = paternalSurname,
+            maternalSurname = maternalSurname,
+            rut = rut,
+            email = email,
+            role = UserRole.valueOf(role),
+            gender = runCatching { UserGender.valueOf(gender) }.getOrDefault(UserGender.Other),
+            passwordHash = passwordHash
         )
     }
 
@@ -61,16 +82,8 @@ class UserRepository(context: Context) {
             .joinToString("") { byte -> "%02x".format(byte) }
     }
 
-    private fun userKey(email: String) = "user_name_$email"
-    private fun middleNameKey(email: String) = "user_middle_name_$email"
-    private fun paternalSurnameKey(email: String) = "user_paternal_surname_$email"
-    private fun maternalSurnameKey(email: String) = "user_maternal_surname_$email"
-    private fun userRutKey(email: String) = "user_rut_$email"
-    private fun rutKey(rut: String) = "rut_owner_$rut"
-    private fun roleKey(email: String) = "user_role_$email"
-    private fun passwordKey(email: String) = "user_password_$email"
-
     private companion object {
-        const val PREFERENCES_NAME = "bitacora_users"
+        const val PREFERENCES_NAME = "bitacora_session"
+        const val ACTIVE_SESSION_KEY = "active_session_email"
     }
 }
