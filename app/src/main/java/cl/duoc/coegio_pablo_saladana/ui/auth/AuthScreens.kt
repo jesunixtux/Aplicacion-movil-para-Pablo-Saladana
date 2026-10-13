@@ -146,6 +146,7 @@ private fun LoginScreen(
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    var attemptedSubmit by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     AuthContainer {
@@ -154,17 +155,24 @@ private fun LoginScreen(
 
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it; message = null },
+            onValueChange = { email = it; message = null; isError = false },
             label = { Text("Correo electrónico") },
             singleLine = true,
+            isError = attemptedSubmit && (email.isBlank() || !email.contains("@")),
+            supportingText = {
+                if (attemptedSubmit && email.isBlank()) Text("Ingresa tu correo electrónico.")
+                else if (attemptedSubmit && !email.contains("@")) Text("Ingresa un correo válido.")
+            },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it; message = null },
+            onValueChange = { password = it; message = null; isError = false },
             label = { Text("Contraseña") },
             singleLine = true,
+            isError = attemptedSubmit && password.isBlank(),
+            supportingText = { if (attemptedSubmit && password.isBlank()) Text("Ingresa tu contraseña.") },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -175,6 +183,7 @@ private fun LoginScreen(
 
         Button(
             onClick = {
+                attemptedSubmit = true
                 if (email.isBlank() || password.isBlank()) {
                     isError = true
                     message = "Completa tu correo y contraseña."
@@ -233,6 +242,7 @@ private fun RegisterScreen(
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    var attemptedSubmit by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     AuthContainer {
@@ -244,6 +254,8 @@ private fun RegisterScreen(
             onValueChange = { firstName = PersonNameValidator.sanitize(it); message = null },
             label = { Text("Nombre") },
             singleLine = true,
+            isError = attemptedSubmit && !PersonNameValidator.isValid(firstName),
+            supportingText = { NameError(firstName, attemptedSubmit, "Ingresa un nombre válido.") },
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
@@ -251,6 +263,12 @@ private fun RegisterScreen(
             onValueChange = { middleName = PersonNameValidator.sanitize(it); message = null },
             label = { Text("Segundo nombre") },
             singleLine = true,
+            isError = attemptedSubmit && middleName.isNotBlank() && !PersonNameValidator.isValid(middleName),
+            supportingText = {
+                if (attemptedSubmit && middleName.isNotBlank() && !PersonNameValidator.isValid(middleName)) {
+                    Text("Usa solo letras, espacios o guiones.")
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
@@ -258,6 +276,8 @@ private fun RegisterScreen(
             onValueChange = { paternalSurname = PersonNameValidator.sanitize(it); message = null },
             label = { Text("Apellido paterno") },
             singleLine = true,
+            isError = attemptedSubmit && !PersonNameValidator.isValid(paternalSurname),
+            supportingText = { NameError(paternalSurname, attemptedSubmit, "Ingresa un apellido paterno válido.") },
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
@@ -265,6 +285,8 @@ private fun RegisterScreen(
             onValueChange = { maternalSurname = PersonNameValidator.sanitize(it); message = null },
             label = { Text("Apellido materno") },
             singleLine = true,
+            isError = attemptedSubmit && !PersonNameValidator.isValid(maternalSurname),
+            supportingText = { NameError(maternalSurname, attemptedSubmit, "Ingresa un apellido materno válido.") },
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
@@ -272,6 +294,10 @@ private fun RegisterScreen(
             onValueChange = { rut = RutValidator.format(it); message = null },
             label = { Text("RUT, por ejemplo 12.345.678-5") },
             singleLine = true,
+            isError = attemptedSubmit && !RutValidator.isValid(rut),
+            supportingText = {
+                if (attemptedSubmit && !RutValidator.isValid(rut)) Text("Ingresa un RUT válido.")
+            },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth()
         )
@@ -280,6 +306,11 @@ private fun RegisterScreen(
             onValueChange = { email = it; message = null },
             label = { Text("Correo electrónico") },
             singleLine = true,
+            isError = attemptedSubmit && (email.isBlank() || !email.contains("@")),
+            supportingText = {
+                if (attemptedSubmit && email.isBlank()) Text("Ingresa tu correo electrónico.")
+                else if (attemptedSubmit && !email.contains("@")) Text("Ingresa un correo válido.")
+            },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth()
         )
@@ -288,6 +319,11 @@ private fun RegisterScreen(
             onValueChange = { password = it; message = null },
             label = { Text("Contraseña") },
             singleLine = true,
+            isError = attemptedSubmit && password.length < 8,
+            supportingText = {
+                if (attemptedSubmit && password.isBlank()) Text("Ingresa una contraseña.")
+                else if (attemptedSubmit && password.length < 8) Text("Debe tener al menos 8 caracteres.")
+            },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -304,6 +340,7 @@ private fun RegisterScreen(
 
         Button(
             onClick = {
+                attemptedSubmit = true
                 when {
                     firstName.isBlank() || paternalSurname.isBlank() || maternalSurname.isBlank() ||
                         rut.isBlank() || email.isBlank() || password.isBlank() -> {
@@ -396,6 +433,13 @@ private fun RoleOption(
     Row(verticalAlignment = Alignment.CenterVertically) {
         RadioButton(selected = selectedRole == role, onClick = { onSelected(role) })
         Text(label)
+    }
+}
+
+@Composable
+private fun NameError(value: String, attemptedSubmit: Boolean, requiredMessage: String) {
+    if (attemptedSubmit && !PersonNameValidator.isValid(value)) {
+        Text(if (value.isBlank()) requiredMessage else "Usa solo letras, espacios o guiones.")
     }
 }
 
