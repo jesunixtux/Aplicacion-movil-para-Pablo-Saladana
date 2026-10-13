@@ -7,10 +7,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.LocalOverscrollFactory
+import androidx.compose.foundation.rememberPlatformOverscrollFactory
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +41,9 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CoegioPabloSaladanaTheme {
+                val overscrollFactory = rememberPlatformOverscrollFactory(
+                    glowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                )
                 val authViewModel = remember { AuthViewModel(userRepository) }
                 var destination by remember { mutableStateOf(AuthDestination.Welcome) }
                 var currentAccount by remember { mutableStateOf<UserAccount?>(null) }
@@ -70,40 +77,42 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    if (isRestoringSession) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        AuthScreens(
-                            destination = destination,
-                            authViewModel = authViewModel,
-                            currentAccount = currentAccount,
-                            profilePhotoUri = profilePhotoUri,
-                            onDestinationChange = { destination = it },
-                            onUserLoggedIn = {
-                                currentAccount = it
-                                authViewModel.saveSession(it)
-                                profilePhotoUri = profilePhotoStorage.uriFor(it.email)
-                            },
-                            onPhotoEdited = { bitmap: Bitmap ->
-                                currentAccount?.let { account ->
-                                    profilePhotoStorage.save(account.email, bitmap)?.let { savedUri ->
-                                        profilePhotoUri = savedUri
-                                    }
-                                }
-                            },
-                            onUserLoggedOut = {
-                                authViewModel.clearSession()
-                                currentAccount = null
-                                profilePhotoUri = null
-                                destination = AuthDestination.Welcome
+                CompositionLocalProvider(LocalOverscrollFactory provides overscrollFactory) {
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        if (isRestoringSession) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
                             }
-                        )
+                        } else {
+                            AuthScreens(
+                                destination = destination,
+                                authViewModel = authViewModel,
+                                currentAccount = currentAccount,
+                                profilePhotoUri = profilePhotoUri,
+                                onDestinationChange = { destination = it },
+                                onUserLoggedIn = {
+                                    currentAccount = it
+                                    authViewModel.saveSession(it)
+                                    profilePhotoUri = profilePhotoStorage.uriFor(it.email)
+                                },
+                                onPhotoEdited = { bitmap: Bitmap ->
+                                    currentAccount?.let { account ->
+                                        profilePhotoStorage.save(account.email, bitmap)?.let { savedUri ->
+                                            profilePhotoUri = savedUri
+                                        }
+                                    }
+                                },
+                                onUserLoggedOut = {
+                                    authViewModel.clearSession()
+                                    currentAccount = null
+                                    profilePhotoUri = null
+                                    destination = AuthDestination.Welcome
+                                }
+                            )
+                        }
                     }
                 }
             }

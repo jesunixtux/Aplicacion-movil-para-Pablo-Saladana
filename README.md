@@ -16,7 +16,8 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 - Flujo visual de detalle de bitácora y creación de registros.
 - Dashboard docente con indicadores, creación de bitácora y revisión de aportes simulados.
 - Estados de carga, validaciones y mensajes de confirmación en las acciones principales.
-- Transiciones animadas entre las pantallas principales.
+- Transiciones animadas entre pantallas, aparición escalonada de tarjetas y movimiento al filtrar listas.
+- Efecto elástico al llegar al inicio o final del contenido y aviso animado al terminar cada lista.
 
 ## Requisitos
 
@@ -89,6 +90,20 @@ Los valores visuales se pueden cambiar en `ProfilePhotoDefaults`, dentro de `ui/
 
 La resolución del archivo final se cambia mediante `PHOTO_SIZE_PIXELS` en `data/ProfilePhotoStorage.kt`.
 
+## Animaciones y desplazamiento
+
+Los tiempos y escalas generales están centralizados en `AppMotionDefaults`, dentro de `ui/components/AppMotion.kt`:
+
+- `NavigationDurationMillis`: duración del cambio entre pantallas.
+- `ItemDurationMillis`: duración de entrada de tarjetas y bloques.
+- `ItemDelayMillis`: separación entre apariciones consecutivas.
+- `MaximumStaggerDelayMillis`: retraso máximo para listas largas.
+- `EndOfContentPulseMillis`: velocidad del aviso de fin de contenido.
+- `ItemInitialScale`: escala inicial de cada bloque.
+- `EndOfContentMinimumScale`: intensidad del pulso final.
+
+El estiramiento usa el efecto de desplazamiento de la plataforma configurado en `MainActivity.kt`. En versiones compatibles de Android se muestra como estiramiento; en versiones anteriores se mantiene el efecto visual propio del sistema.
+
 ## Datos de prueba
 
 Usar únicamente datos ficticios. No ingresar RUT, nombres, correos, fotografías ni credenciales reales de estudiantes o docentes.
@@ -109,6 +124,9 @@ adb shell pm clear cl.duoc.coegio_pablo_saladana
 - [ ] Los botones **Volver** funcionan.
 - [ ] El botón atrás del sistema Android respeta la navegación.
 - [ ] Las transiciones no muestran pantallas superpuestas ni bloqueadas.
+- [ ] Las tarjetas aparecen suavemente y no cambian de posición con saltos al filtrar.
+- [ ] Al arrastrar después del inicio o final se muestra el efecto elástico del sistema.
+- [ ] El aviso de fin de contenido aparece al terminar cada lista.
 
 ### Registro de cuenta
 

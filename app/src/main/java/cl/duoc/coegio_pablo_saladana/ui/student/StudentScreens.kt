@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,6 +27,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
+import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -46,23 +48,38 @@ fun StudentNotebookDetail(onBack: () -> Unit, onCreateEntry: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text("Octubre 2026 · 5.º Básico", style = MaterialTheme.typography.titleMedium)
-                Text("Comprender y comunicar ideas", style = MaterialTheme.typography.headlineSmall)
-                Text("Prof. Carolina Soto", style = MaterialTheme.typography.bodyMedium)
-            }
-            item {
-                InfoCard("Propósito", "Registrar lo aprendido después de cada clase y reconocer las dificultades que necesitan apoyo.")
-            }
-            item {
-                InfoCard("Instrucciones", "Completa un registro por clase. Escribe con tus propias palabras y agrega una evidencia cuando sea necesario.")
-            }
-            item {
-                InfoCard("Preguntas orientadoras", "¿Qué contenido trabajamos? ¿Qué actividad realizamos? ¿Qué aprendí? ¿Qué duda me quedó?")
-            }
-            item {
-                Button(onClick = onCreateEntry, modifier = Modifier.fillMaxWidth()) {
-                    Text("Crear registro de clase")
+                AnimatedListItem(0) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Octubre 2026 · 5.º Básico", style = MaterialTheme.typography.titleMedium)
+                        Text("Comprender y comunicar ideas", style = MaterialTheme.typography.headlineSmall)
+                        Text("Prof. Carolina Soto", style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
+            }
+            item {
+                AnimatedListItem(1) {
+                    InfoCard("Propósito", "Registrar lo aprendido después de cada clase y reconocer las dificultades que necesitan apoyo.")
+                }
+            }
+            item {
+                AnimatedListItem(2) {
+                    InfoCard("Instrucciones", "Completa un registro por clase. Escribe con tus propias palabras y agrega una evidencia cuando sea necesario.")
+                }
+            }
+            item {
+                AnimatedListItem(3) {
+                    InfoCard("Preguntas orientadoras", "¿Qué contenido trabajamos? ¿Qué actividad realizamos? ¿Qué aprendí? ¿Qué duda me quedó?")
+                }
+            }
+            item {
+                AnimatedListItem(4) {
+                    Button(onClick = onCreateEntry, modifier = Modifier.fillMaxWidth()) {
+                        Text("Crear registro de clase")
+                    }
+                }
+            }
+            item {
+                EndOfContent("No hay más información en esta bitácora")
             }
         }
     }
@@ -147,6 +164,7 @@ fun StudentEntryForm(onBack: () -> Unit, onSaved: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Guardar como borrador") }
             }
+            item { EndOfContent("Fin del formulario") }
         }
     }
 }
@@ -174,15 +192,18 @@ fun StudentHistory(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Text("Tus registros", style = MaterialTheme.typography.headlineSmall) }
-            items(records) { record ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(record.first, style = MaterialTheme.typography.titleMedium)
-                        Text(record.second, color = MaterialTheme.colorScheme.primary)
-                        Text("Aquí aparecerá la retroalimentación del docente cuando el registro sea revisado.")
+            itemsIndexed(records, key = { _, record -> record.first }) { index, record ->
+                AnimatedListItem(index + 1, Modifier.animateItem()) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(record.first, style = MaterialTheme.typography.titleMedium)
+                            Text(record.second, color = MaterialTheme.colorScheme.primary)
+                            Text("Aquí aparecerá la retroalimentación del docente cuando el registro sea revisado.")
+                        }
                     }
                 }
             }
+            item { EndOfContent("Llegaste al final del historial") }
         }
     }
 }

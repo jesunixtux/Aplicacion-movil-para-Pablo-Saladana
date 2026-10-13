@@ -14,6 +14,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,6 +63,7 @@ import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherCreateNotebook
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherDashboard
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherReviewEntries
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileScreen
+import cl.duoc.coegio_pablo_saladana.ui.components.AppMotionDefaults
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -83,7 +92,18 @@ fun AuthScreens(
     onPhotoEdited: (Bitmap) -> Unit,
     onUserLoggedOut: () -> Unit
 ) {
-    AnimatedContent(targetState = destination, label = "auth_navigation") { currentDestination ->
+    AnimatedContent(
+        targetState = destination,
+        transitionSpec = {
+            (fadeIn(tween(AppMotionDefaults.NavigationDurationMillis)) +
+                slideInHorizontally(tween(AppMotionDefaults.NavigationDurationMillis)) { it / 7 } +
+                scaleIn(initialScale = 0.985f)) togetherWith
+                (fadeOut(tween(AppMotionDefaults.NavigationDurationMillis / 2)) +
+                    slideOutHorizontally(tween(AppMotionDefaults.NavigationDurationMillis)) { -it / 10 } +
+                    scaleOut(targetScale = 0.99f))
+        },
+        label = "auth_navigation"
+    ) { currentDestination ->
     when (currentDestination) {
         AuthDestination.Welcome -> WelcomeScreen(onDestinationChange)
         AuthDestination.Login -> LoginScreen(authViewModel, onDestinationChange, onUserLoggedIn)

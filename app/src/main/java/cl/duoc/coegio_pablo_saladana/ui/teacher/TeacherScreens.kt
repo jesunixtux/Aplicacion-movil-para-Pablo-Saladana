@@ -1,6 +1,13 @@
 package cl.duoc.coegio_pablo_saladana.ui.teacher
 
 import android.net.Uri
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
@@ -31,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cl.duoc.coegio_pablo_saladana.data.UserGender
+import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
+import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -63,31 +72,46 @@ fun TeacherDashboard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                ProfileAvatar(
-                    photoUri = profilePhotoUri,
-                    initials = fullName.take(1).uppercase()
-                )
-                Text(greetingFor(fullName, gender), style = MaterialTheme.typography.headlineSmall)
-                Text("RUT: $rut", style = MaterialTheme.typography.labelLarge)
-                Text("Supervisa el aprendizaje de tus cursos desde un solo lugar.")
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MetricCard("2", "Bitácoras activas", Modifier.weight(1f))
-                    MetricCard("24", "Participantes", Modifier.weight(1f))
-                }
-            }
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Lenguaje y Comunicación", style = MaterialTheme.typography.titleLarge)
-                        Text("5.º Básico · Octubre 2026")
-                        Text("18 de 24 estudiantes han participado", color = MaterialTheme.colorScheme.primary)
-                        Button(onClick = onReviewEntries, modifier = Modifier.fillMaxWidth()) { Text("Revisar aportes") }
+                AnimatedListItem(0) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ProfileAvatar(
+                            photoUri = profilePhotoUri,
+                            initials = fullName.take(1).uppercase()
+                        )
+                        Text(greetingFor(fullName, gender), style = MaterialTheme.typography.headlineSmall)
+                        Text("RUT: $rut", style = MaterialTheme.typography.labelLarge)
+                        Text("Supervisa el aprendizaje de tus cursos desde un solo lugar.")
                     }
                 }
             }
-            item { Button(onClick = onCreateNotebook, modifier = Modifier.fillMaxWidth()) { Text("Crear nueva bitácora") } }
+            item {
+                AnimatedListItem(1) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        MetricCard("2", "Bitácoras activas", Modifier.weight(1f))
+                        MetricCard("24", "Participantes", Modifier.weight(1f))
+                    }
+                }
+            }
+            item {
+                AnimatedListItem(2) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Lenguaje y Comunicación", style = MaterialTheme.typography.titleLarge)
+                            Text("5.º Básico · Octubre 2026")
+                            Text("18 de 24 estudiantes han participado", color = MaterialTheme.colorScheme.primary)
+                            Button(onClick = onReviewEntries, modifier = Modifier.fillMaxWidth()) { Text("Revisar aportes") }
+                        }
+                    }
+                }
+            }
+            item {
+                AnimatedListItem(3) {
+                    Button(onClick = onCreateNotebook, modifier = Modifier.fillMaxWidth()) {
+                        Text("Crear nueva bitácora")
+                    }
+                }
+            }
+            item { EndOfContent("No hay más cursos por mostrar") }
         }
     }
 }
@@ -157,6 +181,7 @@ fun TeacherCreateNotebook(onBack: () -> Unit, onPublished: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) { if (loading) CircularProgressIndicator() else Text("Publicar bitácora") }
             }
+            item { EndOfContent("Fin del formulario") }
         }
     }
 }
@@ -180,20 +205,36 @@ fun TeacherReviewEntries(onBack: () -> Unit) {
         ) {
             item { Text("Lenguaje y Comunicación · Octubre 2026", style = MaterialTheme.typography.titleMedium) }
             item { Text("18 participantes · 6 aportes pendientes", color = MaterialTheme.colorScheme.primary) }
-            items(entries) { entry ->
+            itemsIndexed(entries, key = { _, entry -> entry.first }) { index, entry ->
                 val name = entry.first
                 val isReviewed = name in reviewed || entry.second == "Revisado"
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(name, style = MaterialTheme.typography.titleMedium)
-                        Text("Contenido trabajado y aprendizaje registrado por el estudiante.")
-                        Text(if (isReviewed) "Revisado" else "Pendiente de revisión", color = MaterialTheme.colorScheme.primary)
-                        if (!isReviewed) {
-                            OutlinedButton(onClick = { reviewed = reviewed + name }) { Text("Marcar como revisado") }
+                AnimatedListItem(index + 2, Modifier.animateItem()) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(name, style = MaterialTheme.typography.titleMedium)
+                            Text("Contenido trabajado y aprendizaje registrado por el estudiante.")
+                            AnimatedContent(
+                                targetState = isReviewed,
+                                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                label = "review_status"
+                            ) { reviewedState ->
+                                Text(
+                                    if (reviewedState) "Revisado" else "Pendiente de revisión",
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            AnimatedVisibility(
+                                visible = !isReviewed,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically()
+                            ) {
+                                OutlinedButton(onClick = { reviewed = reviewed + name }) { Text("Marcar como revisado") }
+                            }
                         }
                     }
                 }
             }
+            item { EndOfContent("No hay más aportes por revisar") }
         }
     }
 }

@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +26,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cl.duoc.coegio_pablo_saladana.data.UserGender
+import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
+import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
 
 private data class MockNotebook(
@@ -75,6 +77,9 @@ fun StudentDashboard(
             )
         )
     }
+    val visibleNotebooks = notebooks.filter {
+        selectedFilter == "Historial" || it.status != "Bitácora cerrada"
+    }
 
     Scaffold(
         topBar = {
@@ -95,32 +100,51 @@ fun StudentDashboard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ProfileAvatar(
-                        photoUri = profilePhotoUri,
-                        initials = fullName.take(1).uppercase()
-                    )
-                    Text(greetingFor(fullName, gender), style = MaterialTheme.typography.headlineSmall)
-                    Text("RUT: $rut", style = MaterialTheme.typography.labelLarge)
-                    Text(
-                        "Aquí puedes revisar tus bitácoras y registrar lo aprendido en clases.",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    TextButton(onClick = onOpenHistory) { Text("Ver mi historial") }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("Activas", "Historial").forEach { filter ->
-                            FilterChip(
-                                selected = selectedFilter == filter,
-                                onClick = { selectedFilter = filter },
-                                label = { Text(filter) }
-                            )
+                AnimatedListItem(index = 0) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProfileAvatar(
+                            photoUri = profilePhotoUri,
+                            initials = fullName.take(1).uppercase()
+                        )
+                        Text(greetingFor(fullName, gender), style = MaterialTheme.typography.headlineSmall)
+                        Text("RUT: $rut", style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            "Aquí puedes revisar tus bitácoras y registrar lo aprendido en clases.",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        TextButton(onClick = onOpenHistory) { Text("Ver mi historial") }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("Activas", "Historial").forEach { filter ->
+                                FilterChip(
+                                    selected = selectedFilter == filter,
+                                    onClick = { selectedFilter = filter },
+                                    label = { Text(filter) }
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            items(notebooks.filter { selectedFilter == "Historial" || it.status != "Bitácora cerrada" }) { notebook ->
-                NotebookCard(notebook, onOpenNotebook, onCreateEntry)
+            itemsIndexed(
+                items = visibleNotebooks,
+                key = { _, notebook -> "${notebook.subject}-${notebook.month}" }
+            ) { index, notebook ->
+                AnimatedListItem(
+                    index = index + 1,
+                    modifier = Modifier.animateItem()
+                ) {
+                    NotebookCard(notebook, onOpenNotebook, onCreateEntry)
+                }
+            }
+            item(key = "end-$selectedFilter") {
+                EndOfContent(
+                    message = if (selectedFilter == "Activas") {
+                        "No hay más bitácoras activas"
+                    } else {
+                        "Llegaste al final del historial"
+                    }
+                )
             }
         }
     }
