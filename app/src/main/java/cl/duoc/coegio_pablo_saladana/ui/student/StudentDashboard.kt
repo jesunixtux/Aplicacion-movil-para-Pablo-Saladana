@@ -39,6 +39,7 @@ fun StudentDashboard(
     fullName: String,
     rut: String,
     onLogout: () -> Unit,
+    onOpenProfile: () -> Unit,
     onOpenNotebook: () -> Unit,
     onCreateEntry: () -> Unit,
     onOpenHistory: () -> Unit
@@ -74,7 +75,10 @@ fun StudentDashboard(
         topBar = {
             TopAppBar(
                 title = { Text("Mi Bitácora") },
-                actions = { TextButton(onClick = onLogout) { Text("Salir") } }
+                actions = {
+                    TextButton(onClick = onOpenProfile) { Text("Perfil") }
+                    TextButton(onClick = onLogout) { Text("Salir") }
+                }
             )
         }
     ) { innerPadding ->

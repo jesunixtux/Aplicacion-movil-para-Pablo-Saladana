@@ -13,6 +13,7 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 - Flujo visual de detalle de bitácora y creación de registros.
 - Dashboard docente con indicadores, creación de bitácora y revisión de aportes simulados.
 - Estados de carga, validaciones y mensajes de confirmación en las acciones principales.
+- Transiciones animadas entre las pantallas principales.
 
 ## Requisitos
 
@@ -71,6 +72,13 @@ La base de datos se implementará después de cerrar la maqueta visual, mediante
 ## Datos de prueba
 
 Usar únicamente datos ficticios. No ingresar RUT, nombres, correos, fotografías ni credenciales reales de estudiantes o docentes.
+
+### Cuentas demo
+
+```text
+Estudiante: estudiante@bitacora.cl / 12345678
+Docente:    docente@bitacora.cl / 12345678
+```
 
 ## Convenciones de trabajo
 

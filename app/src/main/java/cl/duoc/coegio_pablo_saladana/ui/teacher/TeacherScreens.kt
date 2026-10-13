@@ -38,6 +38,7 @@ fun TeacherDashboard(
     fullName: String,
     rut: String,
     onLogout: () -> Unit,
+    onOpenProfile: () -> Unit,
     onCreateNotebook: () -> Unit,
     onReviewEntries: () -> Unit
 ) {
@@ -45,7 +46,10 @@ fun TeacherDashboard(
         topBar = {
             TopAppBar(
                 title = { Text("Panel docente") },
-                actions = { TextButton(onClick = onLogout) { Text("Salir") } }
+                actions = {
+                    TextButton(onClick = onOpenProfile) { Text("Perfil") }
+                    TextButton(onClick = onLogout) { Text("Salir") }
+                }
             )
         }
     ) { padding ->

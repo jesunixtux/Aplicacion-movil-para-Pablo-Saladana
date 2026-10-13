@@ -11,9 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -32,7 +35,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import cl.duoc.coegio_pablo_saladana.data.UserRepository
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import cl.duoc.coegio_pablo_saladana.data.AuthViewModel
 import cl.duoc.coegio_pablo_saladana.data.RutValidator
 import cl.duoc.coegio_pablo_saladana.data.UserAccount
 import cl.duoc.coegio_pablo_saladana.data.PersonNameValidator
@@ -44,6 +50,7 @@ import cl.duoc.coegio_pablo_saladana.ui.student.StudentNotebookDetail
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherCreateNotebook
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherDashboard
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherReviewEntries
+import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -57,26 +64,29 @@ enum class AuthDestination {
     StudentHistory,
     TeacherDashboard,
     TeacherCreateNotebook,
-    TeacherReviewEntries
+    TeacherReviewEntries,
+    Profile
 }
 
 @Composable
 fun AuthScreens(
     destination: AuthDestination,
-    userRepository: UserRepository,
+    authViewModel: AuthViewModel,
     currentAccount: UserAccount?,
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit,
     onUserLoggedOut: () -> Unit
 ) {
-    when (destination) {
+    AnimatedContent(targetState = destination, label = "auth_navigation") { currentDestination ->
+    when (currentDestination) {
         AuthDestination.Welcome -> WelcomeScreen(onDestinationChange)
-        AuthDestination.Login -> LoginScreen(userRepository, onDestinationChange, onUserLoggedIn)
-        AuthDestination.Register -> RegisterScreen(userRepository, onDestinationChange, onUserLoggedIn)
+        AuthDestination.Login -> LoginScreen(authViewModel, onDestinationChange, onUserLoggedIn)
+        AuthDestination.Register -> RegisterScreen(authViewModel, onDestinationChange, onUserLoggedIn)
         AuthDestination.StudentDashboard -> StudentDashboard(
             fullName = currentAccount?.fullName ?: "Estudiante",
             rut = currentAccount?.rut ?: "RUT no disponible",
             onLogout = onUserLoggedOut,
+            onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
             onOpenNotebook = { onDestinationChange(AuthDestination.StudentNotebook) },
             onCreateEntry = { onDestinationChange(AuthDestination.StudentEntry) },
             onOpenHistory = { onDestinationChange(AuthDestination.StudentHistory) }
@@ -96,6 +106,7 @@ fun AuthScreens(
             fullName = currentAccount?.fullName ?: "Docente",
             rut = currentAccount?.rut ?: "RUT no disponible",
             onLogout = onUserLoggedOut,
+            onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
             onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) },
             onReviewEntries = { onDestinationChange(AuthDestination.TeacherReviewEntries) }
         )
@@ -106,6 +117,22 @@ fun AuthScreens(
         AuthDestination.TeacherReviewEntries -> TeacherReviewEntries {
             onDestinationChange(AuthDestination.TeacherDashboard)
         }
+        AuthDestination.Profile -> ProfileScreen(
+            fullName = currentAccount?.fullName ?: "Usuario",
+            rut = currentAccount?.rut ?: "RUT no disponible",
+            role = currentAccount?.role ?: UserRole.Student,
+            onBack = {
+                onDestinationChange(
+                    if (currentAccount?.role == UserRole.Teacher) {
+                        AuthDestination.TeacherDashboard
+                    } else {
+                        AuthDestination.StudentDashboard
+                    }
+                )
+            },
+            onLogout = onUserLoggedOut
+        )
+    }
     }
 }
 
@@ -137,12 +164,13 @@ private fun WelcomeScreen(onDestinationChange: (AuthDestination) -> Unit) {
 
 @Composable
 private fun LoginScreen(
-    userRepository: UserRepository,
+    authViewModel: AuthViewModel,
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
@@ -173,7 +201,15 @@ private fun LoginScreen(
             singleLine = true,
             isError = attemptedSubmit && password.isBlank(),
             supportingText = { if (attemptedSubmit && password.isBlank()) Text("Ingresa tu contraseña.") },
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                    )
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -191,7 +227,7 @@ private fun LoginScreen(
                     scope.launch {
                         isLoading = true
                         delay(500)
-                        val account = userRepository.login(email, password)
+                        val account = authViewModel.login(email, password)
                         if (account == null) {
                             isError = true
                             message = "El correo o la contraseña no son correctos."
@@ -206,7 +242,7 @@ private fun LoginScreen(
                     }
                 }
             },
-            enabled = !isLoading,
+            enabled = !isLoading && email.contains("@") && password.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
         ) {
             if (isLoading) {
@@ -227,7 +263,7 @@ private fun LoginScreen(
 
 @Composable
 private fun RegisterScreen(
-    userRepository: UserRepository,
+    authViewModel: AuthViewModel,
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit
 ) {
@@ -238,6 +274,9 @@ private fun RegisterScreen(
     var rut by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
     var selectedRole by remember { mutableStateOf(UserRole.Student) }
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
@@ -324,7 +363,36 @@ private fun RegisterScreen(
                 if (attemptedSubmit && password.isBlank()) Text("Ingresa una contraseña.")
                 else if (attemptedSubmit && password.length < 8) Text("Debe tener al menos 8 caracteres.")
             },
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it; message = null },
+            label = { Text("Confirmar contraseña") },
+            singleLine = true,
+            isError = attemptedSubmit && (confirmPassword.isBlank() || confirmPassword != password),
+            supportingText = {
+                if (attemptedSubmit && confirmPassword.isBlank()) Text("Confirma tu contraseña.")
+                else if (attemptedSubmit && confirmPassword != password) Text("Las contraseñas no coinciden.")
+            },
+            visualTransformation = if (confirmPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                    Icon(
+                        imageVector = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (confirmPasswordVisible) "Ocultar confirmación" else "Mostrar confirmación"
+                    )
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -366,11 +434,15 @@ private fun RegisterScreen(
                         isError = true
                         message = "La contraseña debe tener al menos 8 caracteres."
                     }
+                    confirmPassword != password -> {
+                        isError = true
+                        message = "Las contraseñas no coinciden."
+                    }
                     else -> {
                         scope.launch {
                             isLoading = true
                             delay(500)
-                            val accountCreated = userRepository.register(
+                            val account = authViewModel.register(
                                     firstName = firstName,
                                     middleName = middleName,
                                     paternalSurname = paternalSurname,
@@ -380,21 +452,15 @@ private fun RegisterScreen(
                                     password = password,
                                     role = selectedRole
                                 )
-                            if (accountCreated) {
-                                val account = userRepository.login(email, password)
-                                if (account != null) {
-                                    onUserLoggedIn(account)
-                                    onDestinationChange(
-                                        if (account.role == UserRole.Student) {
-                                            AuthDestination.StudentDashboard
-                                        } else {
-                                            AuthDestination.TeacherDashboard
-                                        }
-                                    )
-                                } else {
-                                    isError = true
-                                    message = "La cuenta fue creada, pero no se pudo iniciar sesión."
-                                }
+                            if (account != null) {
+                                onUserLoggedIn(account)
+                                onDestinationChange(
+                                    if (account.role == UserRole.Student) {
+                                        AuthDestination.StudentDashboard
+                                    } else {
+                                        AuthDestination.TeacherDashboard
+                                    }
+                                )
                             } else {
                                 isError = true
                                 message = "Ya existe una cuenta con ese correo o RUT."
@@ -404,7 +470,15 @@ private fun RegisterScreen(
                     }
                 }
             },
-            enabled = !isLoading,
+            enabled = !isLoading &&
+                PersonNameValidator.isValid(firstName) &&
+                (middleName.isBlank() || PersonNameValidator.isValid(middleName)) &&
+                PersonNameValidator.isValid(paternalSurname) &&
+                PersonNameValidator.isValid(maternalSurname) &&
+                RutValidator.isValid(rut) &&
+                email.contains("@") &&
+                password.length >= 8 &&
+                confirmPassword == password,
             modifier = Modifier.fillMaxWidth()
         ) {
             if (isLoading) {
