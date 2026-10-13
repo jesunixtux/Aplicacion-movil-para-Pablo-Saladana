@@ -6,10 +6,6 @@ import java.security.MessageDigest
 class UserRepository(context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
-    init {
-        createDemoAccounts()
-    }
-
     fun register(
         firstName: String,
         middleName: String,
@@ -73,33 +69,6 @@ class UserRepository(context: Context) {
     private fun rutKey(rut: String) = "rut_owner_$rut"
     private fun roleKey(email: String) = "user_role_$email"
     private fun passwordKey(email: String) = "user_password_$email"
-
-    private fun createDemoAccounts() {
-        if (!preferences.contains(userKey("estudiante@bitacora.cl"))) {
-            register(
-                firstName = "Ana",
-                middleName = "Sofía",
-                paternalSurname = "Demo",
-                maternalSurname = "Estudiante",
-                rut = "12.345.678-5",
-                email = "estudiante@bitacora.cl",
-                password = "12345678",
-                role = UserRole.Student
-            )
-        }
-        if (!preferences.contains(userKey("docente@bitacora.cl"))) {
-            register(
-                firstName = "Carlos",
-                middleName = "Andrés",
-                paternalSurname = "Demo",
-                maternalSurname = "Docente",
-                rut = "11.111.111-1",
-                email = "docente@bitacora.cl",
-                password = "12345678",
-                role = UserRole.Teacher
-            )
-        }
-    }
 
     private companion object {
         const val PREFERENCES_NAME = "bitacora_users"

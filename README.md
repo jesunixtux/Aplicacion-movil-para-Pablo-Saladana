@@ -5,7 +5,7 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 ## Estado actual
 
 - Pantalla inicial con acceso a registro e inicio de sesión.
-- Registro de cuentas ficticias como estudiante o docente.
+- Registro manual de cuentas ficticias como estudiante o docente.
 - Validación y formateo de RUT chileno, incluyendo dígito verificador numérico o `K`.
 - Credenciales guardadas localmente para el MVP.
 - Room preparado como dependencia, pero todavía no utilizado en la maqueta.
@@ -73,12 +73,75 @@ La base de datos se implementará después de cerrar la maqueta visual, mediante
 
 Usar únicamente datos ficticios. No ingresar RUT, nombres, correos, fotografías ni credenciales reales de estudiantes o docentes.
 
-### Cuentas demo
+Las cuentas de prueba deben crearse manualmente desde **Registrarse** y pueden eliminarse borrando los datos de la aplicación o desinstalándola del emulador.
 
-```text
-Estudiante: estudiante@bitacora.cl / 12345678
-Docente:    docente@bitacora.cl / 12345678
-```
+## Lista de pruebas antes de SQLite
+
+### Inicio y navegación
+
+- [ ] La aplicación abre en la pantalla de bienvenida.
+- [ ] **Iniciar sesión** abre el formulario correcto.
+- [ ] **Registrarse** abre el formulario correcto.
+- [ ] Los botones **Volver** funcionan.
+- [ ] El botón atrás del sistema Android respeta la navegación.
+- [ ] Las transiciones no muestran pantallas superpuestas ni bloqueadas.
+
+### Registro de cuenta
+
+- [ ] No permite enviar campos obligatorios vacíos.
+- [ ] Muestra el error debajo del campo correspondiente.
+- [ ] No permite números en nombres ni apellidos.
+- [ ] Permite segundo nombre vacío o con letras válidas.
+- [ ] Formatea el RUT con puntos y guion.
+- [ ] Acepta RUT válido con dígito numérico.
+- [ ] Acepta RUT válido con dígito `K`.
+- [ ] Rechaza RUT inválido.
+- [ ] Rechaza correos sin formato válido.
+- [ ] Exige contraseña de mínimo 8 caracteres.
+- [ ] Exige que la confirmación de contraseña coincida.
+- [ ] Mostrar/ocultar contraseña funciona.
+- [ ] El botón de crear cuenta se bloquea mientras carga.
+- [ ] Al crear la cuenta, inicia sesión automáticamente.
+- [ ] El perfil seleccionado dirige al dashboard correcto.
+
+### Inicio de sesión
+
+- [ ] Rechaza correo o contraseña incorrectos.
+- [ ] Muestra errores debajo de cada campo.
+- [ ] El botón se desactiva con datos incompletos.
+- [ ] Muestra el estado de carga.
+- [ ] Dirige al dashboard de estudiante o docente.
+
+### Dashboard estudiante
+
+- [ ] Muestra nombre completo y RUT.
+- [ ] Permite cambiar entre bitácoras activas e historial.
+- [ ] Permite abrir el detalle de una bitácora.
+- [ ] Permite abrir el formulario de nuevo registro.
+- [ ] Valida campos del registro.
+- [ ] Permite guardar borrador simulado.
+- [ ] Permite enviar registro simulado.
+- [ ] Muestra historial y estados de revisión.
+- [ ] Muestra perfil y permite cerrar sesión.
+
+### Dashboard docente
+
+- [ ] Muestra nombre completo y RUT.
+- [ ] Muestra indicadores de participación simulados.
+- [ ] Permite abrir la creación de una bitácora.
+- [ ] Valida título, propósito e instrucciones.
+- [ ] Permite publicar una bitácora simulada.
+- [ ] Permite revisar aportes.
+- [ ] Permite marcar aportes como revisados.
+- [ ] Muestra perfil y permite cerrar sesión.
+
+### Estado general
+
+- [ ] Los estados de carga bloquean acciones duplicadas.
+- [ ] Los mensajes de éxito y error son claros.
+- [ ] La interfaz se puede desplazar en pantallas pequeñas.
+- [ ] No se muestran datos demo precargados.
+- [ ] La app vuelve a iniciar sin cuentas después de limpiar sus datos.
 
 ## Convenciones de trabajo
 
