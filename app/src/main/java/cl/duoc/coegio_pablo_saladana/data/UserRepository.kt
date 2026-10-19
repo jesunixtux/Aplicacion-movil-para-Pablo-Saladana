@@ -20,7 +20,8 @@ class UserRepository(context: Context) {
         gender: UserGender
     ): UserAccount? {
         val normalizedEmail = email.trim().lowercase()
-        val normalizedRut = rut.trim().uppercase()
+        val normalizedRut = RutValidator.format(rut.trim())
+        if (!RutValidator.isValid(normalizedRut)) return null
         if (userDao.findByEmail(normalizedEmail) != null || userDao.findByRut(normalizedRut) != null) {
             return null
         }

@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
@@ -375,7 +376,8 @@ private fun RegisterScreen(
             value = rut,
             onValueChange = {
                 val formattedRut = RutValidator.format(it.text)
-                rut = TextFieldValue(formattedRut, TextRange(formattedRut.length))
+                val cursor = RutValidator.formattedCursorPosition(it.text, it.selection.end)
+                rut = TextFieldValue(formattedRut, TextRange(cursor))
                 message = null
             },
             label = { Text("RUT, por ejemplo 12.345.678-5") },
@@ -384,7 +386,10 @@ private fun RegisterScreen(
             supportingText = {
                 if (attemptedSubmit && !RutValidator.isValid(rut.text)) Text("Ingresa un RUT válido.")
             },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Characters,
+                keyboardType = KeyboardType.Text
+            ),
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(

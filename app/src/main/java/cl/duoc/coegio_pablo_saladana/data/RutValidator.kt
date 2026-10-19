@@ -28,6 +28,14 @@ object RutValidator {
         return if (verifier == null) groupedBody else "$groupedBody-$verifier"
     }
 
+    fun formattedCursorPosition(value: String, cursor: Int): Int {
+        val prefix = value.take(cursor.coerceIn(0, value.length))
+        val formattedPrefix = format(prefix)
+        val formatted = format(value)
+        val afterHyphen = prefix.endsWith('-') && formatted.getOrNull(formattedPrefix.length) == '-'
+        return (formattedPrefix.length + if (afterHyphen) 1 else 0).coerceAtMost(formatted.length)
+    }
+
     fun isValid(value: String): Boolean {
         val cleanValue = value.uppercase().filter { it.isDigit() || it == 'K' }
         if (cleanValue.length !in 2..9) return false

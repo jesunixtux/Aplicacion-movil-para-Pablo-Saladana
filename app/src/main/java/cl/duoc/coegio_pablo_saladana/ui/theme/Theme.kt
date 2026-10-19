@@ -1,6 +1,5 @@
 package cl.duoc.coegio_pablo_saladana.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -12,32 +11,34 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = BitacoraColors.PrimaryDark,
+    onPrimary = BitacoraColors.OnPrimaryDark,
+    secondary = BitacoraColors.SecondaryDark,
+    onSecondary = BitacoraColors.OnSecondaryDark,
+    tertiary = BitacoraColors.TertiaryDark,
+    onTertiary = BitacoraColors.OnTertiaryDark,
+    background = BitacoraColors.BackgroundDark,
+    surface = BitacoraColors.SurfaceDark,
+    onSurface = BitacoraColors.OnSurfaceDark
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = BitacoraColors.PrimaryLight,
+    onPrimary = BitacoraColors.OnPrimaryLight,
+    secondary = BitacoraColors.SecondaryLight,
+    onSecondary = BitacoraColors.OnSecondaryLight,
+    tertiary = BitacoraColors.TertiaryLight,
+    onTertiary = BitacoraColors.OnTertiaryLight,
+    background = BitacoraColors.BackgroundLight,
+    surface = BitacoraColors.SurfaceLight,
+    onSurface = BitacoraColors.OnSurfaceLight
 )
 
 @Composable
 fun CoegioPabloSaladanaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Keep the palette predictable. Set true only to use Android 12+ wallpaper colors.
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
