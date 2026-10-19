@@ -21,7 +21,15 @@ class UserRepository(context: Context) {
     ): UserAccount? {
         val normalizedEmail = email.trim().lowercase()
         val normalizedRut = RutValidator.format(rut.trim())
-        if (!RutValidator.isValid(normalizedRut)) return null
+        if (
+            !PersonNameValidator.isValid(firstName) ||
+            (middleName.isNotBlank() && !PersonNameValidator.isValid(middleName)) ||
+            !PersonNameValidator.isValid(paternalSurname) ||
+            !PersonNameValidator.isValid(maternalSurname) ||
+            !RutValidator.isValid(normalizedRut) ||
+            !EmailValidator.isValid(normalizedEmail) ||
+            password.length < 8
+        ) return null
         if (userDao.findByEmail(normalizedEmail) != null || userDao.findByRut(normalizedRut) != null) {
             return null
         }

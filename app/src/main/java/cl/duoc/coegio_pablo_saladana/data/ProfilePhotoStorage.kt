@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import java.io.File
+import java.security.MessageDigest
 
 class ProfilePhotoStorage(context: Context) {
     private val directory = File(context.filesDir, "profile_photos").apply { mkdirs() }
@@ -63,8 +64,10 @@ class ProfilePhotoStorage(context: Context) {
     }
 
     private fun photoFile(email: String): File {
-        val safeEmail = email.lowercase().replace(Regex("[^a-z0-9]"), "_")
-        return File(directory, "$safeEmail.jpg")
+        val identifier = MessageDigest.getInstance("SHA-256")
+            .digest(email.trim().lowercase().toByteArray())
+            .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+        return File(directory, "$identifier.jpg")
     }
 
     companion object {

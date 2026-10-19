@@ -136,6 +136,8 @@ fun StudentEntryForm(
         if ((!isDraft && !draft.isComplete()) || (isDraft && !draft.hasContent())) {
             message = if (isDraft) {
                 "Escribe al menos un dato antes de guardar el borrador."
+            } else if (!draft.hasValidClassDate()) {
+                "Ingresa una fecha válida con formato dd/MM/aaaa."
             } else {
                 "Completa fecha, contenido, actividad y aprendizaje."
             }

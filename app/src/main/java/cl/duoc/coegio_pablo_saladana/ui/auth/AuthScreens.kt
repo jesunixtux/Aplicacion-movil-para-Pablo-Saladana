@@ -229,10 +229,10 @@ private fun LoginScreen(
             onValueChange = { email = it; message = null; isError = false },
             label = { Text("Correo electrónico") },
             singleLine = true,
-            isError = attemptedSubmit && (email.isBlank() || !email.contains("@")),
+            isError = attemptedSubmit && (email.isBlank() || !EmailValidator.isValid(email)),
             supportingText = {
                 if (attemptedSubmit && email.isBlank()) Text("Ingresa tu correo electrónico.")
-                else if (attemptedSubmit && !email.contains("@")) Text("Ingresa un correo válido.")
+                else if (attemptedSubmit && !EmailValidator.isValid(email)) Text("Ingresa un correo válido.")
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth()
@@ -263,7 +263,7 @@ private fun LoginScreen(
         Button(
             onClick = {
                 attemptedSubmit = true
-                if (email.isBlank() || password.isBlank()) {
+                if (!EmailValidator.isValid(email) || password.isBlank()) {
                     isError = true
                     message = "Completa tu correo y contraseña."
                 } else {
@@ -285,7 +285,7 @@ private fun LoginScreen(
                     }
                 }
             },
-            enabled = !isLoading && email.contains("@") && password.isNotBlank(),
+            enabled = !isLoading && EmailValidator.isValid(email) && password.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
         ) {
             if (isLoading) {
