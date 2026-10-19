@@ -3,7 +3,6 @@ package cl.duoc.coegio_pablo_saladana.ui.student
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,31 +11,19 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.data.UserGender
 import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
-
-private data class MockNotebook(
-    val subject: String,
-    val month: String,
-    val teacher: String,
-    val status: String,
-    val hasPendingEntry: Boolean
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,42 +32,12 @@ fun StudentDashboard(
     rut: String,
     gender: UserGender,
     profilePhotoUri: Uri?,
+    notebooks: List<NotebookEntity>,
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
-    onOpenNotebook: () -> Unit,
-    onCreateEntry: () -> Unit,
+    onOpenNotebook: (NotebookEntity) -> Unit,
     onOpenHistory: () -> Unit
 ) {
-    var selectedFilter by remember { mutableStateOf("Activas") }
-    val notebooks = remember {
-        listOf(
-            MockNotebook(
-                subject = "Lenguaje y Comunicación",
-                month = "Octubre 2026",
-                teacher = "Prof. Carolina Soto",
-                status = "Registro pendiente",
-                hasPendingEntry = true
-            ),
-            MockNotebook(
-                subject = "Ciencias Naturales",
-                month = "Octubre 2026",
-                teacher = "Prof. Diego Muñoz",
-                status = "Revisada",
-                hasPendingEntry = false
-            ),
-            MockNotebook(
-                subject = "Matemática",
-                month = "Septiembre 2026",
-                teacher = "Prof. Andrea Pérez",
-                status = "Bitácora cerrada",
-                hasPendingEntry = false
-            )
-        )
-    }
-    val visibleNotebooks = notebooks.filter {
-        selectedFilter == "Historial" || it.status != "Bitácora cerrada"
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -113,38 +70,23 @@ fun StudentDashboard(
                             style = MaterialTheme.typography.bodyLarge
                         )
                         TextButton(onClick = onOpenHistory) { Text("Ver mi historial") }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("Activas", "Historial").forEach { filter ->
-                                FilterChip(
-                                    selected = selectedFilter == filter,
-                                    onClick = { selectedFilter = filter },
-                                    label = { Text(filter) }
-                                )
-                            }
-                        }
                     }
                 }
             }
 
             itemsIndexed(
-                items = visibleNotebooks,
-                key = { _, notebook -> "${notebook.subject}-${notebook.month}" }
+                items = notebooks,
+                key = { _, notebook -> notebook.id }
             ) { index, notebook ->
                 AnimatedListItem(
                     index = index + 1,
                     modifier = Modifier.animateItem()
                 ) {
-                    NotebookCard(notebook, onOpenNotebook, onCreateEntry)
+                    NotebookCard(notebook) { onOpenNotebook(notebook) }
                 }
             }
-            item(key = "end-$selectedFilter") {
-                EndOfContent(
-                    message = if (selectedFilter == "Activas") {
-                        "No hay más bitácoras activas"
-                    } else {
-                        "Llegaste al final del historial"
-                    }
-                )
+            item(key = "end") {
+                EndOfContent(if (notebooks.isEmpty()) "Aún no hay bitácoras publicadas" else "No hay más bitácoras")
             }
         }
     }
@@ -160,32 +102,26 @@ private fun greetingFor(fullName: String, gender: UserGender): String {
 
 @Composable
 private fun NotebookCard(
-    notebook: MockNotebook,
-    onOpenNotebook: () -> Unit,
-    onCreateEntry: () -> Unit
+    notebook: NotebookEntity,
+    onOpenNotebook: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(notebook.subject, style = MaterialTheme.typography.titleLarge)
-            Text(notebook.month, style = MaterialTheme.typography.labelLarge)
-            Text(notebook.teacher, style = MaterialTheme.typography.bodyMedium)
+            Text(notebook.title, style = MaterialTheme.typography.titleLarge)
+            Text("Docente: ${notebook.teacherName}", style = MaterialTheme.typography.bodyMedium)
             Text(
-                notebook.status,
-                color = if (notebook.hasPendingEntry) {
-                    MaterialTheme.colorScheme.tertiary
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
+                "Disponible",
+                color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelLarge
             )
             Button(
-                onClick = if (notebook.hasPendingEntry) onCreateEntry else onOpenNotebook,
+                onClick = onOpenNotebook,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (notebook.hasPendingEntry) "Crear registro" else "Ver bitácora")
+                Text("Ver bitácora")
             }
         }
     }

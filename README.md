@@ -12,9 +12,9 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 - Creación automática de la base de datos `bitacora.db` al registrar o consultar una cuenta.
 - Sesión activa persistente y restauración automática del dashboard correspondiente.
 - Fotos de perfil recortables, guardadas localmente en formato cuadrado de 64 × 64 píxeles.
-- Dashboard de estudiante con bitácoras activas e historial simulado.
-- Flujo visual de detalle de bitácora y creación de registros.
-- Dashboard docente con indicadores, creación de bitácora y revisión de aportes simulados.
+- Dashboard de estudiante con las bitácoras publicadas y detalle persistente.
+- Registros de clase enviados o guardados como borrador en SQLite, con historial persistente.
+- Dashboard docente con listado y creación persistente de bitácoras.
 - Estados de carga, validaciones y mensajes de confirmación en las acciones principales.
 - Transiciones animadas entre pantallas, aparición escalonada de tarjetas y movimiento al filtrar listas.
 - Efecto elástico al llegar al inicio o final del contenido y aviso animado al terminar cada lista.
@@ -71,7 +71,7 @@ El APK de desarrollo se genera en:
 
 SQLite está incluido en Android. El proyecto usa Room como capa de acceso tipado y verificable sobre SQLite. Las dependencias ya están declaradas en `gradle/libs.versions.toml` y el compilador de Room se ejecuta mediante KSP.
 
-La base de datos se crea automáticamente mediante `AppDatabase`. Actualmente contiene la tabla `users`, su `UserDao` y el repositorio de autenticación. La versión actual incluye una migración automática para agregar el género a cuentas existentes, usando `Other` como valor predeterminado. Las demás entidades se agregarán con nuevas migraciones de Room cuando se implementen cursos, asignaturas, bitácoras, registros, evidencias, retroalimentación e indicadores.
+La base de datos se crea automáticamente mediante `AppDatabase`. Contiene las tablas `users`, `notebooks` y `student_entries`, con sus DAO y repositorios. La versión 4 agrega los registros de clase mediante una migración que conserva las cuentas y bitácoras existentes. Cada registro guarda la bitácora, estudiante, fecha, contenido, actividad, aprendizaje, dudas y si está enviado o en borrador.
 
 Las contraseñas nuevas se almacenan con una sal única y PBKDF2. Se usa HMAC-SHA-256 cuando está disponible y HMAC-SHA-1 en Android 7 para mantener compatibilidad con la versión mínima. Las cuentas anteriores con hash SHA-256 siguen funcionando: el hash se actualiza al iniciar sesión correctamente. El hash no se expone en el modelo que usa la interfaz.
 
@@ -157,22 +157,22 @@ adb shell pm clear cl.duoc.coegio_pablo_saladana
 ### Dashboard estudiante
 
 - [ ] Muestra nombre completo y RUT.
-- [ ] Permite cambiar entre bitácoras activas e historial.
+- [ ] Muestra las bitácoras publicadas después de reiniciar la aplicación.
 - [ ] Permite abrir el detalle de una bitácora.
 - [ ] Permite abrir el formulario de nuevo registro.
 - [ ] Valida campos del registro.
-- [ ] Permite guardar borrador simulado.
-- [ ] Permite enviar registro simulado.
-- [ ] Muestra historial y estados de revisión.
+- [ ] Permite guardar un borrador y conservarlo después de reiniciar.
+- [ ] Permite enviar un registro y conservarlo después de reiniciar.
+- [ ] Muestra el historial real con estado **Borrador** o **Enviado**.
 - [ ] Muestra perfil y permite cerrar sesión.
 
 ### Dashboard docente
 
 - [ ] Muestra nombre completo y RUT.
-- [ ] Muestra indicadores de participación simulados.
+- [ ] Muestra la cantidad y el listado de bitácoras publicadas por el docente activo.
 - [ ] Permite abrir la creación de una bitácora.
 - [ ] Valida título, propósito e instrucciones.
-- [ ] Permite publicar una bitácora simulada.
+- [ ] Publica una bitácora y la conserva después de reiniciar la aplicación.
 - [ ] Permite revisar aportes.
 - [ ] Permite marcar aportes como revisados.
 - [ ] Muestra perfil y permite cerrar sesión.

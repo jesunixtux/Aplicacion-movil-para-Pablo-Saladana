@@ -42,15 +42,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import cl.duoc.coegio_pablo_saladana.data.AuthViewModel
 import cl.duoc.coegio_pablo_saladana.data.EmailValidator
+import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
+import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.data.RutValidator
+import cl.duoc.coegio_pablo_saladana.data.StudentEntryDraft
+import cl.duoc.coegio_pablo_saladana.data.StudentEntryEntity
 import cl.duoc.coegio_pablo_saladana.data.UserAccount
 import cl.duoc.coegio_pablo_saladana.data.PersonNameValidator
 import cl.duoc.coegio_pablo_saladana.data.UserGender
@@ -61,7 +67,6 @@ import cl.duoc.coegio_pablo_saladana.ui.student.StudentHistory
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentNotebookDetail
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherCreateNotebook
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherDashboard
-import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherReviewEntries
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileScreen
 import cl.duoc.coegio_pablo_saladana.ui.components.AppMotionDefaults
 import kotlinx.coroutines.delay
@@ -77,7 +82,6 @@ enum class AuthDestination {
     StudentHistory,
     TeacherDashboard,
     TeacherCreateNotebook,
-    TeacherReviewEntries,
     Profile
 }
 
@@ -86,9 +90,15 @@ fun AuthScreens(
     destination: AuthDestination,
     authViewModel: AuthViewModel,
     currentAccount: UserAccount?,
+    notebooks: List<NotebookEntity>,
+    selectedNotebook: NotebookEntity?,
+    studentEntries: List<StudentEntryEntity>,
     profilePhotoUri: Uri?,
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit,
+    onNotebookSelected: (NotebookEntity) -> Unit,
+    onNotebookPublished: suspend (NotebookDraft) -> Boolean,
+    onStudentEntrySaved: suspend (StudentEntryDraft, Boolean) -> Boolean,
     onPhotoEdited: (Bitmap) -> Unit,
     onUserLoggedOut: () -> Unit
 ) {
@@ -113,21 +123,23 @@ fun AuthScreens(
             rut = currentAccount?.rut ?: "RUT no disponible",
             gender = currentAccount?.gender ?: UserGender.Other,
             profilePhotoUri = profilePhotoUri,
+            notebooks = notebooks,
             onLogout = onUserLoggedOut,
             onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
-            onOpenNotebook = { onDestinationChange(AuthDestination.StudentNotebook) },
-            onCreateEntry = { onDestinationChange(AuthDestination.StudentEntry) },
+            onOpenNotebook = onNotebookSelected,
             onOpenHistory = { onDestinationChange(AuthDestination.StudentHistory) }
         )
         AuthDestination.StudentNotebook -> StudentNotebookDetail(
+            notebook = selectedNotebook,
             onBack = { onDestinationChange(AuthDestination.StudentDashboard) },
             onCreateEntry = { onDestinationChange(AuthDestination.StudentEntry) }
         )
         AuthDestination.StudentEntry -> StudentEntryForm(
             onBack = { onDestinationChange(AuthDestination.StudentNotebook) },
+            onSave = onStudentEntrySaved,
             onSaved = { onDestinationChange(AuthDestination.StudentHistory) }
         )
-        AuthDestination.StudentHistory -> StudentHistory {
+        AuthDestination.StudentHistory -> StudentHistory(studentEntries) {
             onDestinationChange(AuthDestination.StudentDashboard)
         }
         AuthDestination.TeacherDashboard -> TeacherDashboard(
@@ -135,18 +147,16 @@ fun AuthScreens(
             rut = currentAccount?.rut ?: "RUT no disponible",
             gender = currentAccount?.gender ?: UserGender.Other,
             profilePhotoUri = profilePhotoUri,
+            notebooks = notebooks.filter { it.teacherEmail == currentAccount?.email },
             onLogout = onUserLoggedOut,
             onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
-            onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) },
-            onReviewEntries = { onDestinationChange(AuthDestination.TeacherReviewEntries) }
+            onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) }
         )
         AuthDestination.TeacherCreateNotebook -> TeacherCreateNotebook(
             onBack = { onDestinationChange(AuthDestination.TeacherDashboard) },
+            onPublish = onNotebookPublished,
             onPublished = { onDestinationChange(AuthDestination.TeacherDashboard) }
         )
-        AuthDestination.TeacherReviewEntries -> TeacherReviewEntries {
-            onDestinationChange(AuthDestination.TeacherDashboard)
-        }
         AuthDestination.Profile -> ProfileScreen(
             fullName = currentAccount?.fullName ?: "Usuario",
             rut = currentAccount?.rut ?: "RUT no disponible",
@@ -303,7 +313,7 @@ private fun RegisterScreen(
     var middleName by remember { mutableStateOf("") }
     var paternalSurname by remember { mutableStateOf("") }
     var maternalSurname by remember { mutableStateOf("") }
-    var rut by remember { mutableStateOf("") }
+    var rut by remember { mutableStateOf(TextFieldValue()) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -363,12 +373,16 @@ private fun RegisterScreen(
         )
         OutlinedTextField(
             value = rut,
-            onValueChange = { rut = RutValidator.format(it); message = null },
+            onValueChange = {
+                val formattedRut = RutValidator.format(it.text)
+                rut = TextFieldValue(formattedRut, TextRange(formattedRut.length))
+                message = null
+            },
             label = { Text("RUT, por ejemplo 12.345.678-5") },
             singleLine = true,
-            isError = attemptedSubmit && !RutValidator.isValid(rut),
+            isError = attemptedSubmit && !RutValidator.isValid(rut.text),
             supportingText = {
-                if (attemptedSubmit && !RutValidator.isValid(rut)) Text("Ingresa un RUT válido.")
+                if (attemptedSubmit && !RutValidator.isValid(rut.text)) Text("Ingresa un RUT válido.")
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth()
@@ -436,7 +450,7 @@ private fun RegisterScreen(
         }
 
         Text("Género", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             GenderOption("Masculino", UserGender.Male, selectedGender) { selectedGender = it }
             GenderOption("Femenino", UserGender.Female, selectedGender) { selectedGender = it }
             GenderOption("Otro", UserGender.Other, selectedGender) { selectedGender = it }
@@ -451,7 +465,7 @@ private fun RegisterScreen(
                 attemptedSubmit = true
                 when {
                     firstName.isBlank() || paternalSurname.isBlank() || maternalSurname.isBlank() ||
-                        rut.isBlank() || email.isBlank() || password.isBlank() -> {
+                        rut.text.isBlank() || email.isBlank() || password.isBlank() -> {
                         isError = true
                         message = "Completa todos los campos."
                     }
@@ -462,7 +476,7 @@ private fun RegisterScreen(
                         isError = true
                         message = "Los nombres y apellidos solo pueden contener letras."
                     }
-                    !RutValidator.isValid(rut) -> {
+                    !RutValidator.isValid(rut.text) -> {
                         isError = true
                         message = "Ingresa un RUT válido, por ejemplo 12.345.678-5 o 7.654.321-K."
                     }
@@ -487,7 +501,7 @@ private fun RegisterScreen(
                                     middleName = middleName,
                                     paternalSurname = paternalSurname,
                                     maternalSurname = maternalSurname,
-                                    rut = rut,
+                                    rut = rut.text,
                                     email = email,
                                     password = password,
                                     role = selectedRole,
@@ -516,7 +530,7 @@ private fun RegisterScreen(
                 (middleName.isBlank() || PersonNameValidator.isValid(middleName)) &&
                 PersonNameValidator.isValid(paternalSurname) &&
                 PersonNameValidator.isValid(maternalSurname) &&
-                RutValidator.isValid(rut) &&
+                RutValidator.isValid(rut.text) &&
                 EmailValidator.isValid(email) &&
                 password.length >= 8 &&
                 confirmPassword == password,

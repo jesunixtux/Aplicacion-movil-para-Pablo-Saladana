@@ -2,7 +2,6 @@ package cl.duoc.coegio_pablo_saladana.ui.student
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,18 +26,27 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
+import cl.duoc.coegio_pablo_saladana.data.StudentEntryDraft
+import cl.duoc.coegio_pablo_saladana.data.StudentEntryEntity
 import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentNotebookDetail(onBack: () -> Unit, onCreateEntry: () -> Unit) {
+fun StudentNotebookDetail(
+    notebook: NotebookEntity?,
+    onBack: () -> Unit,
+    onCreateEntry: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Bitácora de Lenguaje") },
+                title = { Text(notebook?.title ?: "Bitácora") },
                 navigationIcon = { TextButton(onClick = onBack) { Text("Atrás") } }
             )
         }
@@ -50,30 +58,41 @@ fun StudentNotebookDetail(onBack: () -> Unit, onCreateEntry: () -> Unit) {
             item {
                 AnimatedListItem(0) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Octubre 2026 · 5.º Básico", style = MaterialTheme.typography.titleMedium)
-                        Text("Comprender y comunicar ideas", style = MaterialTheme.typography.headlineSmall)
-                        Text("Prof. Carolina Soto", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            notebook?.title ?: "Bitácora no disponible",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        notebook?.let {
+                            Text("Docente: ${it.teacherName}", style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
             }
             item {
                 AnimatedListItem(1) {
-                    InfoCard("Propósito", "Registrar lo aprendido después de cada clase y reconocer las dificultades que necesitan apoyo.")
+                    InfoCard("Propósito", notebook?.purpose ?: "No disponible")
                 }
             }
             item {
                 AnimatedListItem(2) {
-                    InfoCard("Instrucciones", "Completa un registro por clase. Escribe con tus propias palabras y agrega una evidencia cuando sea necesario.")
+                    InfoCard("Instrucciones", notebook?.instructions ?: "No disponible")
                 }
             }
             item {
                 AnimatedListItem(3) {
-                    InfoCard("Preguntas orientadoras", "¿Qué contenido trabajamos? ¿Qué actividad realizamos? ¿Qué aprendí? ¿Qué duda me quedó?")
+                    InfoCard(
+                        "Preguntas orientadoras",
+                        notebook?.questions?.ifBlank { "Sin preguntas orientadoras." } ?: "No disponible"
+                    )
                 }
             }
             item {
                 AnimatedListItem(4) {
-                    Button(onClick = onCreateEntry, modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = onCreateEntry,
+                        enabled = notebook != null,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text("Crear registro de clase")
                     }
                 }
@@ -97,16 +116,38 @@ private fun InfoCard(title: String, content: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentEntryForm(onBack: () -> Unit, onSaved: () -> Unit) {
-    var date by remember { mutableStateOf("12/10/2026") }
+fun StudentEntryForm(
+    onBack: () -> Unit,
+    onSave: suspend (StudentEntryDraft, Boolean) -> Boolean,
+    onSaved: () -> Unit
+) {
+    var date by remember {
+        mutableStateOf(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()))
+    }
     var content by remember { mutableStateOf("") }
     var activity by remember { mutableStateOf("") }
     var learning by remember { mutableStateOf("") }
     var doubts by remember { mutableStateOf("") }
-    var attachment by remember { mutableStateOf<String?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val saveEntry: (Boolean) -> Unit = { isDraft ->
+        val draft = StudentEntryDraft(date, content, activity, learning, doubts)
+        if ((!isDraft && !draft.isComplete()) || (isDraft && !draft.hasContent())) {
+            message = if (isDraft) {
+                "Escribe al menos un dato antes de guardar el borrador."
+            } else {
+                "Completa fecha, contenido, actividad y aprendizaje."
+            }
+        } else {
+            scope.launch {
+                isLoading = true
+                val saved = onSave(draft, isDraft)
+                isLoading = false
+                if (saved) onSaved() else message = "No se pudo guardar el registro. Inténtalo nuevamente."
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -127,39 +168,16 @@ fun StudentEntryForm(onBack: () -> Unit, onSaved: () -> Unit) {
             item { OutlinedTextField(learning, { learning = it; message = null }, label = { Text("¿Qué aprendí?") }, minLines = 3, modifier = Modifier.fillMaxWidth()) }
             item { OutlinedTextField(doubts, { doubts = it }, label = { Text("Dudas o dificultades") }, minLines = 3, modifier = Modifier.fillMaxWidth()) }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Evidencias", style = MaterialTheme.typography.titleMedium)
-                        Text(attachment ?: "Aún no has agregado una evidencia.")
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { attachment = "Fotografía seleccionada (simulada)" }) { Text("Galería") }
-                            OutlinedButton(onClick = { attachment = "Archivo seleccionado (simulado)" }) { Text("Archivo") }
-                        }
-                    }
-                }
-            }
-            item {
                 message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Button(
-                    onClick = {
-                        if (content.isBlank() || activity.isBlank() || learning.isBlank()) {
-                            message = "Completa contenido, actividad y aprendizaje."
-                        } else {
-                            scope.launch {
-                                isLoading = true
-                                delay(500)
-                                isLoading = false
-                                onSaved()
-                            }
-                        }
-                    },
+                    onClick = { saveEntry(false) },
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
                 ) { if (isLoading) CircularProgressIndicator() else Text("Enviar registro") }
             }
             item {
                 OutlinedButton(
-                    onClick = { message = "Borrador guardado en la maqueta." },
+                    onClick = { saveEntry(true) },
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Guardar como borrador") }
@@ -171,14 +189,7 @@ fun StudentEntryForm(onBack: () -> Unit, onSaved: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentHistory(onBack: () -> Unit) {
-    val records = remember {
-        listOf(
-            "12/10/2026 · Lenguaje y Comunicación" to "Revisado por la docente",
-            "08/10/2026 · Ciencias Naturales" to "Pendiente de revisión",
-            "30/09/2026 · Matemática" to "Bitácora cerrada"
-        )
-    }
+fun StudentHistory(entries: List<StudentEntryEntity>, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -192,13 +203,16 @@ fun StudentHistory(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Text("Tus registros", style = MaterialTheme.typography.headlineSmall) }
-            itemsIndexed(records, key = { _, record -> record.first }) { index, record ->
+            if (entries.isEmpty()) {
+                item { Text("Aún no has creado registros.") }
+            }
+            itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
                 AnimatedListItem(index + 1, Modifier.animateItem()) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(record.first, style = MaterialTheme.typography.titleMedium)
-                            Text(record.second, color = MaterialTheme.colorScheme.primary)
-                            Text("Aquí aparecerá la retroalimentación del docente cuando el registro sea revisado.")
+                            Text("${entry.classDate} · ${entry.notebookTitle}", style = MaterialTheme.typography.titleMedium)
+                            Text(if (entry.isDraft) "Borrador" else "Enviado", color = MaterialTheme.colorScheme.primary)
+                            Text(entry.learning.ifBlank { entry.content })
                         }
                     }
                 }
