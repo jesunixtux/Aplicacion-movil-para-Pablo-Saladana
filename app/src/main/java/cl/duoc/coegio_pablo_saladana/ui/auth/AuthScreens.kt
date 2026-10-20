@@ -532,15 +532,7 @@ private fun RegisterScreen(
                     }
                 }
             },
-            enabled = !isLoading &&
-                PersonNameValidator.isValid(firstName) &&
-                (middleName.isBlank() || PersonNameValidator.isValid(middleName)) &&
-                PersonNameValidator.isValid(paternalSurname) &&
-                PersonNameValidator.isValid(maternalSurname) &&
-                RutValidator.isValid(rut.text) &&
-                EmailValidator.isValid(email) &&
-                password.length >= 8 &&
-                confirmPassword == password,
+            enabled = !isLoading,
             modifier = Modifier.fillMaxWidth()
         ) {
             if (isLoading) {
