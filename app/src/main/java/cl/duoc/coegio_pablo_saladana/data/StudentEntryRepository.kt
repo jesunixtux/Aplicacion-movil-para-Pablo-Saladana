@@ -2,6 +2,7 @@ package cl.duoc.coegio_pablo_saladana.data
 
 import android.content.Context
 
+/** Gestiona los registros de clase y evita que cuentas docentes los creen como estudiantes. */
 class StudentEntryRepository(context: Context) {
     private val entryDao = AppDatabase.getInstance(context).studentEntryDao()
 

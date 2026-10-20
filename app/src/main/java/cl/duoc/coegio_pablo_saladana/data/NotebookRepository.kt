@@ -2,6 +2,7 @@ package cl.duoc.coegio_pablo_saladana.data
 
 import android.content.Context
 
+/** Gestiona la consulta y publicación de bitácoras; solo un docente puede crearlas. */
 class NotebookRepository(context: Context) {
     private val notebookDao = AppDatabase.getInstance(context).notebookDao()
 

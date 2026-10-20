@@ -25,6 +25,7 @@ import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
 
+/** Panel principal del estudiante con las bitácoras disponibles. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentDashboard(

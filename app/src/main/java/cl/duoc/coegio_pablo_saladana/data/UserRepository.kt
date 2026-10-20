@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** Centraliza cuentas, validaciones de registro y la sesión persistida localmente. */
 class UserRepository(context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private val userDao = AppDatabase.getInstance(context).userDao()
@@ -57,6 +58,7 @@ class UserRepository(context: Context) {
             PasswordHasher.verify(password, user.passwordHash)
         }
         if (!verified) return null
+        // Una cuenta antigua se actualiza después de verificar correctamente su contraseña.
         if (PasswordHasher.isLegacyHash(user.passwordHash)) {
             val upgradedHash = withContext(Dispatchers.Default) { PasswordHasher.create(password) }
             userDao.updatePasswordHash(user.id, user.passwordHash, upgradedHash)

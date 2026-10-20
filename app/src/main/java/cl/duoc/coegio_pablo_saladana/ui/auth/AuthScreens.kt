@@ -73,6 +73,7 @@ import cl.duoc.coegio_pablo_saladana.ui.components.AppMotionDefaults
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** Destinos que puede mostrar el contenedor principal de Compose. */
 enum class AuthDestination {
     Welcome,
     Login,
@@ -87,6 +88,7 @@ enum class AuthDestination {
 }
 
 @Composable
+/** Enruta las pantallas según el estado de sesión y las acciones del usuario. */
 fun AuthScreens(
     destination: AuthDestination,
     authViewModel: AuthViewModel,

@@ -6,6 +6,7 @@ import java.security.SecureRandom
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
+/** Genera hashes con sal y verifica tanto el formato actual como el legado para migrarlo al iniciar sesión. */
 internal object PasswordHasher {
     private const val PREFIX = "pbkdf2"
     private const val SALT_SIZE = 16

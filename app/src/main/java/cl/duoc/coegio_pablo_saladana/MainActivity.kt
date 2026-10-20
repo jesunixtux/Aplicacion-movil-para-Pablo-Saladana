@@ -39,6 +39,7 @@ import cl.duoc.coegio_pablo_saladana.ui.auth.AuthScreens
 import cl.duoc.coegio_pablo_saladana.ui.theme.CoegioPabloSaladanaTheme
 import kotlinx.coroutines.launch
 
+/** Coordina la sesión activa y la navegación principal de la aplicación. */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -111,20 +112,20 @@ class MainActivity : ComponentActivity() {
                                 currentAccount = currentAccount,
                                 notebooks = notebooks,
                                 selectedNotebook = selectedNotebook,
-                                  studentEntries = studentEntries,
+                                studentEntries = studentEntries,
                                 profilePhotoUri = profilePhotoUri,
                                 onDestinationChange = { destination = it },
                                 onUserLoggedIn = {
                                     currentAccount = it
                                     authViewModel.saveSession(it)
                                     profilePhotoUri = profilePhotoStorage.uriFor(it.email)
-                                      scope.launch {
-                                          studentEntries = if (it.role == UserRole.Student) {
-                                              studentEntryRepository.findByStudent(it.email)
-                                          } else {
-                                              emptyList()
-                                          }
-                                      }
+                                    scope.launch {
+                                        studentEntries = if (it.role == UserRole.Student) {
+                                            studentEntryRepository.findByStudent(it.email)
+                                        } else {
+                                            emptyList()
+                                        }
+                                    }
                                 },
                                 onNotebookSelected = {
                                     selectedNotebook = it
@@ -140,21 +141,21 @@ class MainActivity : ComponentActivity() {
                                         false
                                     }
                                 },
-                                  onStudentEntrySaved = { draft: StudentEntryDraft, isDraft: Boolean ->
-                                      val student = currentAccount
-                                      val notebook = selectedNotebook
-                                      val created = if (student != null && notebook != null) {
-                                          studentEntryRepository.create(draft, isDraft, student, notebook)
-                                      } else {
-                                          null
-                                      }
-                                      if (created != null) {
-                                          studentEntries = listOf(created) + studentEntries
-                                          true
-                                      } else {
-                                          false
-                                      }
-                                  },
+                                onStudentEntrySaved = { draft: StudentEntryDraft, isDraft: Boolean ->
+                                    val student = currentAccount
+                                    val notebook = selectedNotebook
+                                    val created = if (student != null && notebook != null) {
+                                        studentEntryRepository.create(draft, isDraft, student, notebook)
+                                    } else {
+                                        null
+                                    }
+                                    if (created != null) {
+                                        studentEntries = listOf(created) + studentEntries
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                },
                                 onPhotoEdited = { bitmap: Bitmap ->
                                     currentAccount?.let { account ->
                                         profilePhotoStorage.save(account.email, bitmap)?.let { savedUri ->
@@ -166,7 +167,7 @@ class MainActivity : ComponentActivity() {
                                     authViewModel.clearSession()
                                     currentAccount = null
                                     selectedNotebook = null
-                                      studentEntries = emptyList()
+                                    studentEntries = emptyList()
                                     profilePhotoUri = null
                                     destination = AuthDestination.Welcome
                                 }

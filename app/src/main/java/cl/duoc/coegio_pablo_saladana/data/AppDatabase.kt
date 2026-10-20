@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+/** Base local de Room y punto único de acceso a usuarios, bitácoras y registros. */
 @Database(
     entities = [UserEntity::class, NotebookEntity::class, StudentEntryEntity::class],
     version = 4,
@@ -31,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Mantiene las cuentas existentes al incorporar el campo de género.
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -39,6 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Añade las bitácoras sin eliminar la información de usuarios.
         private val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -58,6 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Añade los registros personales que escriben los estudiantes.
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(

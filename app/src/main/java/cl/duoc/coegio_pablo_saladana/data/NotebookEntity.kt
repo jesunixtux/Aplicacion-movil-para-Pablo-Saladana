@@ -3,6 +3,7 @@ package cl.duoc.coegio_pablo_saladana.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+/** Bitácora publicada por un docente y visible para los estudiantes. */
 @Entity(tableName = "notebooks")
 data class NotebookEntity(
     @PrimaryKey(autoGenerate = true)
@@ -16,6 +17,7 @@ data class NotebookEntity(
     val createdAt: Long
 )
 
+/** Datos editables antes de publicar una bitácora. */
 data class NotebookDraft(
     val title: String,
     val purpose: String,

@@ -7,6 +7,7 @@ import android.net.Uri
 import java.io.File
 import java.security.MessageDigest
 
+/** Guarda una foto cuadrada de 64 × 64 píxeles por cuenta dentro del almacenamiento privado. */
 class ProfilePhotoStorage(context: Context) {
     private val directory = File(context.filesDir, "profile_photos").apply { mkdirs() }
 
@@ -25,6 +26,7 @@ class ProfilePhotoStorage(context: Context) {
         }.getOrNull()
     }
 
+    // Recorta al centro y reduce el archivo antes de guardarlo para limitar su tamaño.
     private fun normalize(source: Bitmap): Bitmap {
         val cropSize = minOf(source.width, source.height)
         val left = (source.width - cropSize) / 2
@@ -63,6 +65,7 @@ class ProfilePhotoStorage(context: Context) {
         return Uri.fromFile(file).buildUpon().fragment(version).build()
     }
 
+    // El hash evita que correos distintos compartan por accidente el mismo nombre de archivo.
     private fun photoFile(email: String): File {
         val identifier = MessageDigest.getInstance("SHA-256")
             .digest(email.trim().lowercase().toByteArray())

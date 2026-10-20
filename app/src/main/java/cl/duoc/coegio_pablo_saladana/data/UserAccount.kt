@@ -1,16 +1,19 @@
 package cl.duoc.coegio_pablo_saladana.data
 
+/** Roles disponibles en la aplicación. */
 enum class UserRole {
     Teacher,
     Student
 }
 
+/** Dato usado para personalizar el saludo sin cambiar los permisos. */
 enum class UserGender {
     Male,
     Female,
     Other
 }
 
+/** Modelo de usuario que usa la interfaz; nunca contiene la contraseña ni su hash. */
 data class UserAccount(
     val firstName: String,
     val middleName: String,

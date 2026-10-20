@@ -34,10 +34,11 @@ private val LightColorScheme = lightColorScheme(
     onSurface = BitacoraColors.OnSurfaceLight
 )
 
+/** Aplica la paleta Material 3 de Bitácora según el modo claro u oscuro del dispositivo. */
 @Composable
 fun CoegioPabloSaladanaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Keep the palette predictable. Set true only to use Android 12+ wallpaper colors.
+    // Se mantiene una paleta fija; activar esta opción usa los colores del fondo de Android 12+.
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** Valores compartidos de tamaño, recorte y transición para fotos de perfil. */
 object ProfilePhotoDefaults {
     val AvatarSize = 64.dp
     val EditorPreviewSize = 200.dp
@@ -44,6 +45,7 @@ object ProfilePhotoDefaults {
     const val MaxZoom = 3f
 }
 
+/** Dibuja una foto guardada o, si no existe, las iniciales de la cuenta. */
 @Composable
 fun ProfileAvatar(
     photoUri: Uri?,

@@ -58,6 +58,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
+/** Presenta los datos de la cuenta y permite cargar, capturar y ajustar su foto. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -183,6 +184,7 @@ fun ProfileScreen(
     }
 }
 
+/** Editor simple que recorta, desplaza y rota una imagen antes de guardarla. */
 @Composable
 private fun ProfileImageEditor(
     sourceUri: Uri?,

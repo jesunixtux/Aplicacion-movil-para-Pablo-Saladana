@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
+/** Valores compartidos para que las listas se muevan con el mismo ritmo en toda la app. */
 object AppMotionDefaults {
     const val NavigationDurationMillis = 360
     const val ItemDurationMillis = 420
@@ -40,6 +41,7 @@ object AppMotionDefaults {
     const val EndOfContentMinimumScale = 0.96f
 }
 
+/** Hace aparecer una tarjeta con entrada progresiva según su posición en la lista. */
 @Composable
 fun AnimatedListItem(
     index: Int,
@@ -77,6 +79,7 @@ fun AnimatedListItem(
     }
 }
 
+/** Muestra un cierre visual sutil cuando no queda más contenido por recorrer. */
 @Composable
 fun EndOfContent(
     message: String,

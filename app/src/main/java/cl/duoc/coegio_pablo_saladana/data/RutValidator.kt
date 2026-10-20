@@ -1,5 +1,6 @@
 package cl.duoc.coegio_pablo_saladana.data
 
+/** Formatea y valida RUT chilenos, incluido el dígito verificador K. */
 object RutValidator {
     fun format(value: String): String {
         val upperValue = value.uppercase()
@@ -28,6 +29,7 @@ object RutValidator {
         return if (verifier == null) groupedBody else "$groupedBody-$verifier"
     }
 
+    /** Conserva una posición natural del cursor al insertar puntos y guion automáticamente. */
     fun formattedCursorPosition(value: String, cursor: Int): Int {
         val prefix = value.take(cursor.coerceIn(0, value.length))
         val formattedPrefix = format(prefix)

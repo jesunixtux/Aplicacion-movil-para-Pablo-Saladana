@@ -1,5 +1,6 @@
 package cl.duoc.coegio_pablo_saladana.data
 
+/** Acepta nombres con letras, espacios y guiones; elimina otros caracteres durante la escritura. */
 object PersonNameValidator {
     private val namePattern = Regex("^[\\p{L}]+(?:[ -][\\p{L}]+)*$")
 

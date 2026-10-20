@@ -36,6 +36,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** Detalle de una bitácora seleccionada antes de crear un registro de clase. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentNotebookDetail(
@@ -114,6 +115,7 @@ private fun InfoCard(title: String, content: String) {
     }
 }
 
+/** Formulario para guardar un borrador o enviar un registro completo. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentEntryForm(
@@ -189,6 +191,7 @@ fun StudentEntryForm(
     }
 }
 
+/** Lista los registros guardados por la cuenta estudiante actual. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentHistory(entries: List<StudentEntryEntity>, onBack: () -> Unit) {

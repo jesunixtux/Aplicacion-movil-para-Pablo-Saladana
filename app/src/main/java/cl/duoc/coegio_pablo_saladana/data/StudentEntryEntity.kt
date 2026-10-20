@@ -6,6 +6,7 @@ import java.text.ParsePosition
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+/** Registro de una clase escrito por un estudiante para una bitácora publicada. */
 @Entity(tableName = "student_entries")
 data class StudentEntryEntity(
     @PrimaryKey(autoGenerate = true)
@@ -23,6 +24,7 @@ data class StudentEntryEntity(
     val createdAt: Long
 )
 
+/** Información editable de un registro antes de guardarlo como borrador o enviarlo. */
 data class StudentEntryDraft(
     val classDate: String,
     val content: String,
@@ -41,6 +43,7 @@ data class StudentEntryDraft(
     fun hasContent(): Boolean = content.isNotBlank() ||
         activity.isNotBlank() || learning.isNotBlank() || doubts.isNotBlank()
 
+    /** Exige una fecha real con el formato que muestra el formulario: dd/MM/aaaa. */
     fun hasValidClassDate(): Boolean {
         if (!CLASS_DATE_PATTERN.matches(classDate)) return false
         val position = ParsePosition(0)

@@ -2,6 +2,7 @@ package cl.duoc.coegio_pablo_saladana.data
 
 import androidx.lifecycle.ViewModel
 
+/** Expone las acciones de autenticación a Compose sin acoplar las pantallas a Room. */
 class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
     suspend fun login(email: String, password: String): UserAccount? {
         return userRepository.login(email, password)

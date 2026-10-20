@@ -34,6 +34,7 @@ import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
 import kotlinx.coroutines.launch
 
+/** Panel principal del docente con sus bitácoras publicadas. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TeacherDashboard(
@@ -119,6 +120,7 @@ private fun MetricCard(value: String, label: String, modifier: Modifier) {
     }
 }
 
+/** Formulario para crear y publicar una bitácora mensual. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TeacherCreateNotebook(
