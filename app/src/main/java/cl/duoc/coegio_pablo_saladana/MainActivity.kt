@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import cl.duoc.coegio_pablo_saladana.data.AuthViewModel
+import cl.duoc.coegio_pablo_saladana.data.DebugDataSeeder
 import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
 import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.data.NotebookRepository
@@ -66,6 +67,14 @@ class MainActivity : ComponentActivity() {
                 var isRestoringSession by remember { mutableStateOf(true) }
 
                 LaunchedEffect(Unit) {
+                    if (BuildConfig.DEBUG) {
+                        DebugDataSeeder.seedIfNeeded(
+                            applicationContext,
+                            userRepository,
+                            notebookRepository,
+                            studentEntryRepository
+                        )
+                    }
                     val restoredSession = authViewModel.restoreSession()
                     notebooks = notebookRepository.findAll()
                     studentEntries = restoredSession?.takeIf { it.role == UserRole.Student }

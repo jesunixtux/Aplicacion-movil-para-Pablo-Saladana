@@ -66,6 +66,10 @@ class UserRepository(context: Context) {
         return user.toUserAccount()
     }
 
+    suspend fun findAccountByEmail(email: String): UserAccount? {
+        return userDao.findByEmail(email.trim().lowercase())?.toUserAccount()
+    }
+
     fun saveSession(account: UserAccount) {
         preferences.edit()
             .putString(ACTIVE_SESSION_KEY, account.email)
