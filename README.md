@@ -21,9 +21,9 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 
 ## Requisitos
 
-- Android Studio instalado.
-- JDK 17 o superior. Android Studio incluye un JDK compatible en macOS.
-- Android SDK con API 37.
+- Android Studio Panda 1 (2025.3.1) o posterior.
+- JDK 17. Android Studio incluye un JDK compatible en macOS.
+- Android SDK Platform 36.1.
 - Emulador Android o dispositivo físico con depuración USB.
 
 Si Gradle no encuentra Java en macOS, usa el JDK incluido en Android Studio:

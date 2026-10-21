@@ -7,13 +7,15 @@ plugins {
 android {
     namespace = "cl.duoc.coegio_pablo_saladana"
     compileSdk {
-        version = release(37)
+        version = release(36) {
+            minorApiLevel = 1
+        }
     }
 
     defaultConfig {
         applicationId = "cl.duoc.coegio_pablo_saladana"
         minSdk = 24
-        targetSdk = 37
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
