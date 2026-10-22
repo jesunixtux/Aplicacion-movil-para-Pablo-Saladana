@@ -9,6 +9,9 @@ class StudentEntryRepository(context: Context) {
     suspend fun findByStudent(email: String): List<StudentEntryEntity> =
         entryDao.findByStudent(email)
 
+    suspend fun findSubmittedByTeacher(email: String): List<StudentEntryEntity> =
+        entryDao.findSubmittedByTeacher(email)
+
     suspend fun create(
         draft: StudentEntryDraft,
         isDraft: Boolean,

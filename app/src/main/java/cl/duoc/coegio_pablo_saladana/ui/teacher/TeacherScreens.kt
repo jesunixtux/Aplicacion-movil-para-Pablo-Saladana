@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
 import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
+import cl.duoc.coegio_pablo_saladana.data.StudentEntryEntity
 import cl.duoc.coegio_pablo_saladana.data.UserGender
 import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
@@ -43,6 +44,7 @@ fun TeacherDashboard(
     gender: UserGender,
     profilePhotoUri: Uri?,
     notebooks: List<NotebookEntity>,
+    submittedEntries: List<StudentEntryEntity>,
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
     onCreateNotebook: () -> Unit
@@ -80,13 +82,33 @@ fun TeacherDashboard(
                     MetricCard(notebooks.size.toString(), "Bitácoras publicadas", Modifier.fillMaxWidth())
                 }
             }
-            itemsIndexed(notebooks, key = { _, notebook -> notebook.id }) { index, notebook ->
+            itemsIndexed(notebooks, key = { _, notebook -> "notebook-${notebook.id}" }) { index, notebook ->
                 AnimatedListItem(index + 2, Modifier.animateItem()) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(notebook.title, style = MaterialTheme.typography.titleLarge)
                             Text(notebook.purpose)
                             Text("Publicada", color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+            item {
+                Text("Registros enviados", style = MaterialTheme.typography.titleLarge)
+            }
+            if (submittedEntries.isEmpty()) {
+                item { Text("Aún no hay registros enviados por estudiantes.") }
+            }
+            itemsIndexed(submittedEntries, key = { _, entry -> "entry-${entry.id}" }) { index, entry ->
+                AnimatedListItem(index + notebooks.size + 3, Modifier.animateItem()) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(entry.studentName, style = MaterialTheme.typography.titleMedium)
+                            Text("${entry.notebookTitle} · ${entry.classDate}")
+                            Text("Contenido: ${entry.content}")
+                            Text("Actividad: ${entry.activity}")
+                            Text("Aprendizaje: ${entry.learning}")
+                            if (entry.doubts.isNotBlank()) Text("Dudas: ${entry.doubts}")
                         }
                     }
                 }

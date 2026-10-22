@@ -11,6 +11,7 @@ import cl.duoc.coegio_pablo_saladana.data.UserAccount
 import cl.duoc.coegio_pablo_saladana.data.UserGender
 import cl.duoc.coegio_pablo_saladana.data.UserRole
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,13 +28,32 @@ class ContentRepositoryTest {
         assertNull(entryRepository.create(validEntryDraft(), false, account(UserRole.Teacher), notebook()))
     }
 
-    private fun account(role: UserRole) = UserAccount(
+    @Test
+    fun teacherSeesOnlySubmittedEntriesForTheirOwnNotebooks() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val notebooks = NotebookRepository(context)
+        val entries = StudentEntryRepository(context)
+        val runId = System.currentTimeMillis()
+        val teacher = account(UserRole.Teacher, "teacher-review-$runId@example.com")
+        val otherTeacher = account(UserRole.Teacher, "other-teacher-review-$runId@example.com")
+        val student = account(UserRole.Student, "student-review-$runId@example.com")
+        val ownNotebook = requireNotNull(notebooks.create(validNotebookDraft(), teacher))
+        val otherNotebook = requireNotNull(notebooks.create(validNotebookDraft(), otherTeacher))
+
+        val submitted = requireNotNull(entries.create(validEntryDraft(), false, student, ownNotebook))
+        entries.create(validEntryDraft(), true, student, ownNotebook)
+        entries.create(validEntryDraft(), false, student, otherNotebook)
+
+        assertEquals(listOf(submitted.id), entries.findSubmittedByTeacher(teacher.email).map { it.id })
+    }
+
+    private fun account(role: UserRole, email: String = "prueba.qa@example.com") = UserAccount(
         firstName = "Prueba",
         middleName = "",
         paternalSurname = "QA",
         maternalSurname = "Uno",
         rut = "12.345.678-5",
-        email = "prueba.qa@example.com",
+        email = email,
         role = role,
         gender = UserGender.Other
     )

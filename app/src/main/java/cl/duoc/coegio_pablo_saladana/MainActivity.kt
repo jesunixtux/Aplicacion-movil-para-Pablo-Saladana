@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
                 var notebooks by remember { mutableStateOf<List<NotebookEntity>>(emptyList()) }
                 var selectedNotebook by remember { mutableStateOf<NotebookEntity?>(null) }
                 var studentEntries by remember { mutableStateOf<List<StudentEntryEntity>>(emptyList()) }
+                var teacherEntries by remember { mutableStateOf<List<StudentEntryEntity>>(emptyList()) }
                 var profilePhotoUri by remember { mutableStateOf<Uri?>(null) }
                 var isRestoringSession by remember { mutableStateOf(true) }
 
@@ -79,6 +80,9 @@ class MainActivity : ComponentActivity() {
                     notebooks = notebookRepository.findAll()
                     studentEntries = restoredSession?.takeIf { it.role == UserRole.Student }
                         ?.let { studentEntryRepository.findByStudent(it.email) }
+                        ?: emptyList()
+                    teacherEntries = restoredSession?.takeIf { it.role == UserRole.Teacher }
+                        ?.let { studentEntryRepository.findSubmittedByTeacher(it.email) }
                         ?: emptyList()
                     currentAccount = restoredSession
                     profilePhotoUri = restoredSession?.let { profilePhotoStorage.uriFor(it.email) }
@@ -122,6 +126,7 @@ class MainActivity : ComponentActivity() {
                                 notebooks = notebooks,
                                 selectedNotebook = selectedNotebook,
                                 studentEntries = studentEntries,
+                                teacherEntries = teacherEntries,
                                 profilePhotoUri = profilePhotoUri,
                                 onDestinationChange = { destination = it },
                                 onUserLoggedIn = {
@@ -131,6 +136,11 @@ class MainActivity : ComponentActivity() {
                                     scope.launch {
                                         studentEntries = if (it.role == UserRole.Student) {
                                             studentEntryRepository.findByStudent(it.email)
+                                        } else {
+                                            emptyList()
+                                        }
+                                        teacherEntries = if (it.role == UserRole.Teacher) {
+                                            studentEntryRepository.findSubmittedByTeacher(it.email)
                                         } else {
                                             emptyList()
                                         }
@@ -177,6 +187,7 @@ class MainActivity : ComponentActivity() {
                                     currentAccount = null
                                     selectedNotebook = null
                                     studentEntries = emptyList()
+                                    teacherEntries = emptyList()
                                     profilePhotoUri = null
                                     destination = AuthDestination.Welcome
                                 }

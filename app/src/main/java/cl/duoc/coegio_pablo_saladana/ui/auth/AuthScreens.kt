@@ -96,6 +96,7 @@ fun AuthScreens(
     notebooks: List<NotebookEntity>,
     selectedNotebook: NotebookEntity?,
     studentEntries: List<StudentEntryEntity>,
+    teacherEntries: List<StudentEntryEntity>,
     profilePhotoUri: Uri?,
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit,
@@ -151,6 +152,7 @@ fun AuthScreens(
             gender = currentAccount?.gender ?: UserGender.Other,
             profilePhotoUri = profilePhotoUri,
             notebooks = notebooks.filter { it.teacherEmail == currentAccount?.email },
+            submittedEntries = teacherEntries,
             onLogout = onUserLoggedOut,
             onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
             onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) }

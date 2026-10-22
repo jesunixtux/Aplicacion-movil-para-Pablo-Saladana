@@ -52,6 +52,21 @@ Cumple el mínimo de 8 caracteres. Escríbela igual en **Contraseña** y **Confi
 | Género | Otro |
 | Contraseña | `BitacoraDemo26!` |
 
+## Cuenta creada manualmente en la prueba final
+
+Esta cuenta existe solo en la instalación debug del emulador `emulator-5554`; no forma parte de la semilla automática. Si se borran los datos de esa instalación, hay que registrarla de nuevo.
+
+| Campo | Valor |
+|---|---|
+| Nombre | Prueba |
+| Apellido paterno | Tester |
+| Apellido materno | Uno |
+| RUT ficticio válido | `12.345.678-5` |
+| Correo | `qa.final.20261022@example.com` |
+| Rol | Estudiante |
+| Género | Otro |
+| Contraseña | `PruebaQA26!` |
+
 ## Contenido de ejemplo para probar bitácoras
 
 La compilación debug crea esta bitácora publicada para la cuenta docente:
