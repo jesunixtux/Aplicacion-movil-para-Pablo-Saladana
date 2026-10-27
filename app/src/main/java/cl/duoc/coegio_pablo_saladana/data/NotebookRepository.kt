@@ -1,6 +1,7 @@
 package cl.duoc.coegio_pablo_saladana.data
 
 import android.content.Context
+import cl.duoc.coegio_pablo_saladana.validation.NotebookValidator
 
 /** Gestiona la consulta y publicación de bitácoras; solo un docente puede crearlas. */
 class NotebookRepository(context: Context) {
@@ -12,7 +13,7 @@ class NotebookRepository(context: Context) {
         if (teacher.role != UserRole.Teacher) return null
 
         val normalizedDraft = draft.normalized()
-        if (!normalizedDraft.isValid()) return null
+        if (!NotebookValidator.isValid(normalizedDraft)) return null
 
         val notebook = NotebookEntity(
             title = normalizedDraft.title,

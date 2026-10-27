@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,10 +59,11 @@ class MainActivity : ComponentActivity() {
                 )
                 val authViewModel = remember { AuthViewModel(userRepository) }
                 val scope = rememberCoroutineScope()
-                var destination by remember { mutableStateOf(AuthDestination.Welcome) }
+                var destination by rememberSaveable { mutableStateOf(AuthDestination.Welcome) }
                 var currentAccount by remember { mutableStateOf<UserAccount?>(null) }
                 var notebooks by remember { mutableStateOf<List<NotebookEntity>>(emptyList()) }
-                var selectedNotebook by remember { mutableStateOf<NotebookEntity?>(null) }
+                var selectedNotebookId by rememberSaveable { mutableStateOf<Long?>(null) }
+                val selectedNotebook = notebooks.firstOrNull { it.id == selectedNotebookId }
                 var studentEntries by remember { mutableStateOf<List<StudentEntryEntity>>(emptyList()) }
                 var teacherEntries by remember { mutableStateOf<List<StudentEntryEntity>>(emptyList()) }
                 var profilePhotoUri by remember { mutableStateOf<Uri?>(null) }
@@ -86,11 +88,11 @@ class MainActivity : ComponentActivity() {
                         ?: emptyList()
                     currentAccount = restoredSession
                     profilePhotoUri = restoredSession?.let { profilePhotoStorage.uriFor(it.email) }
-                    destination = when (restoredSession?.role) {
-                        UserRole.Teacher -> AuthDestination.TeacherDashboard
-                        UserRole.Student -> AuthDestination.StudentDashboard
-                        null -> AuthDestination.Welcome
-                    }
+                    destination = destinationForSession(
+                        if (savedInstanceState == null) null else destination,
+                        restoredSession?.role,
+                        notebooks.any { it.id == selectedNotebookId }
+                    )
                     isRestoringSession = false
                 }
 
@@ -147,7 +149,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onNotebookSelected = {
-                                    selectedNotebook = it
+                                    selectedNotebookId = it.id
                                     destination = AuthDestination.StudentNotebook
                                 },
                                 onNotebookPublished = { draft: NotebookDraft ->
@@ -185,7 +187,7 @@ class MainActivity : ComponentActivity() {
                                 onUserLoggedOut = {
                                     authViewModel.clearSession()
                                     currentAccount = null
-                                    selectedNotebook = null
+                                    selectedNotebookId = null
                                     studentEntries = emptyList()
                                     teacherEntries = emptyList()
                                     profilePhotoUri = null
@@ -197,5 +199,26 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+internal fun destinationForSession(
+    savedDestination: AuthDestination?,
+    role: UserRole?,
+    hasNotebook: Boolean
+): AuthDestination = when (role) {
+    null -> when (savedDestination) {
+        AuthDestination.Login, AuthDestination.Register -> savedDestination
+        else -> AuthDestination.Welcome
+    }
+    UserRole.Student -> when (savedDestination) {
+        AuthDestination.StudentDashboard, AuthDestination.StudentHistory, AuthDestination.Profile -> savedDestination
+        AuthDestination.StudentNotebook, AuthDestination.StudentEntry ->
+            if (hasNotebook) savedDestination else AuthDestination.StudentDashboard
+        else -> AuthDestination.StudentDashboard
+    }
+    UserRole.Teacher -> when (savedDestination) {
+        AuthDestination.TeacherDashboard, AuthDestination.TeacherCreateNotebook, AuthDestination.Profile -> savedDestination
+        else -> AuthDestination.TeacherDashboard
     }
 }

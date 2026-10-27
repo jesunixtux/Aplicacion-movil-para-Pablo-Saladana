@@ -1,6 +1,6 @@
 package cl.duoc.coegio_pablo_saladana
 
-import cl.duoc.coegio_pablo_saladana.data.EmailValidator
+import cl.duoc.coegio_pablo_saladana.validation.EmailValidator
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

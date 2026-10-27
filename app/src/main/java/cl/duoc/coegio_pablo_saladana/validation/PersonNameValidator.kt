@@ -1,4 +1,4 @@
-package cl.duoc.coegio_pablo_saladana.data
+package cl.duoc.coegio_pablo_saladana.validation
 
 /** Acepta nombres con letras, espacios y guiones; elimina otros caracteres durante la escritura. */
 object PersonNameValidator {

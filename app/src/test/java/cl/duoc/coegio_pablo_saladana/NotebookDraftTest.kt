@@ -1,6 +1,7 @@
 package cl.duoc.coegio_pablo_saladana
 
 import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
+import cl.duoc.coegio_pablo_saladana.validation.NotebookValidator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -16,13 +17,13 @@ class NotebookDraftTest {
         assertEquals("Aprender", draft.purpose)
         assertEquals("Completar", draft.instructions)
         assertEquals("¿Qué aprendí?", draft.questions)
-        assertTrue(draft.isValid())
+        assertTrue(NotebookValidator.isValid(draft))
     }
 
     @Test
     fun isValid_rejectsMissingRequiredFields() {
-        assertFalse(NotebookDraft("", "Propósito", "Instrucciones", "").isValid())
-        assertFalse(NotebookDraft("Título", " ", "Instrucciones", "").isValid())
-        assertFalse(NotebookDraft("Título", "Propósito", " ", "").isValid())
+        assertFalse(NotebookValidator.isValid(NotebookDraft("", "Propósito", "Instrucciones", "")))
+        assertFalse(NotebookValidator.isValid(NotebookDraft("Título", " ", "Instrucciones", "")))
+        assertFalse(NotebookValidator.isValid(NotebookDraft("Título", "Propósito", " ", "")))
     }
 }

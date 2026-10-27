@@ -1,6 +1,7 @@
 package cl.duoc.coegio_pablo_saladana.data
 
 import android.content.Context
+import cl.duoc.coegio_pablo_saladana.validation.StudentEntryValidator
 
 /** Gestiona los registros de clase y evita que cuentas docentes los creen como estudiantes. */
 class StudentEntryRepository(context: Context) {
@@ -21,7 +22,8 @@ class StudentEntryRepository(context: Context) {
         if (student.role != UserRole.Student) return null
 
         val normalizedDraft = draft.normalized()
-        if (!normalizedDraft.hasContent() || (!isDraft && !normalizedDraft.isComplete())) return null
+        if (!StudentEntryValidator.hasContent(normalizedDraft) ||
+            (!isDraft && !StudentEntryValidator.isComplete(normalizedDraft))) return null
 
         val entry = StudentEntryEntity(
             notebookId = notebook.id,

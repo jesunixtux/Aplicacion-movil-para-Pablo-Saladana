@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,7 @@ import cl.duoc.coegio_pablo_saladana.data.StudentEntryDraft
 import cl.duoc.coegio_pablo_saladana.data.StudentEntryEntity
 import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
+import cl.duoc.coegio_pablo_saladana.validation.StudentEntryValidator
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -123,22 +125,23 @@ fun StudentEntryForm(
     onSave: suspend (StudentEntryDraft, Boolean) -> Boolean,
     onSaved: () -> Unit
 ) {
-    var date by remember {
+    var date by rememberSaveable {
         mutableStateOf(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()))
     }
-    var content by remember { mutableStateOf("") }
-    var activity by remember { mutableStateOf("") }
-    var learning by remember { mutableStateOf("") }
-    var doubts by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf<String?>(null) }
+    var content by rememberSaveable { mutableStateOf("") }
+    var activity by rememberSaveable { mutableStateOf("") }
+    var learning by rememberSaveable { mutableStateOf("") }
+    var doubts by rememberSaveable { mutableStateOf("") }
+    var message by rememberSaveable { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val saveEntry: (Boolean) -> Unit = { isDraft ->
         val draft = StudentEntryDraft(date, content, activity, learning, doubts)
-        if ((!isDraft && !draft.isComplete()) || (isDraft && !draft.hasContent())) {
+        if ((!isDraft && !StudentEntryValidator.isComplete(draft)) ||
+            (isDraft && !StudentEntryValidator.hasContent(draft))) {
             message = if (isDraft) {
                 "Escribe al menos un dato antes de guardar el borrador."
-            } else if (!draft.hasValidClassDate()) {
+            } else if (!StudentEntryValidator.hasValidClassDate(draft)) {
                 "Ingresa una fecha válida con formato dd/MM/aaaa."
             } else {
                 "Completa fecha, contenido, actividad y aprendizaje."

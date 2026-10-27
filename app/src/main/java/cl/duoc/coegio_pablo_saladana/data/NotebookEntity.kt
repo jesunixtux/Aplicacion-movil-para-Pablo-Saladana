@@ -30,8 +30,4 @@ data class NotebookDraft(
         instructions = instructions.trim(),
         questions = questions.trim()
     )
-
-    fun isValid(): Boolean = title.isNotBlank() &&
-        purpose.isNotBlank() &&
-        instructions.isNotBlank()
 }

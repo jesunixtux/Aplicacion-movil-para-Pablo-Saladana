@@ -1,4 +1,4 @@
-package cl.duoc.coegio_pablo_saladana.data
+package cl.duoc.coegio_pablo_saladana.validation
 
 /** Formatea y valida RUT chilenos, incluido el dígito verificador K. */
 object RutValidator {

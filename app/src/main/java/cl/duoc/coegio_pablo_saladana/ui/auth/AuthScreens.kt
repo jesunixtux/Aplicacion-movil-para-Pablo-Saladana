@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,14 +53,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import cl.duoc.coegio_pablo_saladana.data.AuthViewModel
-import cl.duoc.coegio_pablo_saladana.data.EmailValidator
 import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
 import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
-import cl.duoc.coegio_pablo_saladana.data.RutValidator
 import cl.duoc.coegio_pablo_saladana.data.StudentEntryDraft
 import cl.duoc.coegio_pablo_saladana.data.StudentEntryEntity
 import cl.duoc.coegio_pablo_saladana.data.UserAccount
-import cl.duoc.coegio_pablo_saladana.data.PersonNameValidator
 import cl.duoc.coegio_pablo_saladana.data.UserGender
 import cl.duoc.coegio_pablo_saladana.data.UserRole
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentDashboard
@@ -70,6 +68,10 @@ import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherCreateNotebook
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherDashboard
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileScreen
 import cl.duoc.coegio_pablo_saladana.ui.components.AppMotionDefaults
+import cl.duoc.coegio_pablo_saladana.validation.EmailValidator
+import cl.duoc.coegio_pablo_saladana.validation.PasswordValidator
+import cl.duoc.coegio_pablo_saladana.validation.PersonNameValidator
+import cl.duoc.coegio_pablo_saladana.validation.RutValidator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -215,13 +217,13 @@ private fun LoginScreen(
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var isError by remember { mutableStateOf(false) }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var message by rememberSaveable { mutableStateOf<String?>(null) }
+    var isError by rememberSaveable { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
-    var attemptedSubmit by remember { mutableStateOf(false) }
+    var attemptedSubmit by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     AuthContainer {
@@ -314,22 +316,22 @@ private fun RegisterScreen(
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit
 ) {
-    var firstName by remember { mutableStateOf("") }
-    var middleName by remember { mutableStateOf("") }
-    var paternalSurname by remember { mutableStateOf("") }
-    var maternalSurname by remember { mutableStateOf("") }
-    var rut by remember { mutableStateOf(TextFieldValue()) }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var confirmPasswordVisible by remember { mutableStateOf(false) }
-    var selectedRole by remember { mutableStateOf(UserRole.Student) }
-    var selectedGender by remember { mutableStateOf(UserGender.Other) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var isError by remember { mutableStateOf(false) }
+    var firstName by rememberSaveable { mutableStateOf("") }
+    var middleName by rememberSaveable { mutableStateOf("") }
+    var paternalSurname by rememberSaveable { mutableStateOf("") }
+    var maternalSurname by rememberSaveable { mutableStateOf("") }
+    var rut by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
+    var selectedRole by rememberSaveable { mutableStateOf(UserRole.Student) }
+    var selectedGender by rememberSaveable { mutableStateOf(UserGender.Other) }
+    var message by rememberSaveable { mutableStateOf<String?>(null) }
+    var isError by rememberSaveable { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
-    var attemptedSubmit by remember { mutableStateOf(false) }
+    var attemptedSubmit by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     AuthContainer {
@@ -414,10 +416,10 @@ private fun RegisterScreen(
             onValueChange = { password = it; message = null },
             label = { Text("Contraseña") },
             singleLine = true,
-            isError = attemptedSubmit && password.length < 8,
+            isError = attemptedSubmit && !PasswordValidator.isValid(password),
             supportingText = {
                 if (attemptedSubmit && password.isBlank()) Text("Ingresa una contraseña.")
-                else if (attemptedSubmit && password.length < 8) Text("Debe tener al menos 8 caracteres.")
+                else if (attemptedSubmit && !PasswordValidator.isValid(password)) Text("Debe tener al menos 8 caracteres.")
             },
             visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
@@ -493,7 +495,7 @@ private fun RegisterScreen(
                         isError = true
                         message = "Ingresa un correo válido."
                     }
-                    password.length < 8 -> {
+                    !PasswordValidator.isValid(password) -> {
                         isError = true
                         message = "La contraseña debe tener al menos 8 caracteres."
                     }

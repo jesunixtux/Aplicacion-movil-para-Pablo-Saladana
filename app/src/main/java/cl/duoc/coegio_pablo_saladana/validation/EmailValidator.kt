@@ -1,4 +1,4 @@
-package cl.duoc.coegio_pablo_saladana.data
+package cl.duoc.coegio_pablo_saladana.validation
 
 /** Valida el formato básico de correos usados al registrar e iniciar sesión. */
 internal object EmailValidator {

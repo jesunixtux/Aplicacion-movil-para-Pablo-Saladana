@@ -1,10 +1,14 @@
 package cl.duoc.coegio_pablo_saladana.data
 
 import android.content.Context
+import cl.duoc.coegio_pablo_saladana.validation.EmailValidator
+import cl.duoc.coegio_pablo_saladana.validation.PasswordValidator
+import cl.duoc.coegio_pablo_saladana.validation.PersonNameValidator
+import cl.duoc.coegio_pablo_saladana.validation.RutValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Centraliza cuentas, validaciones de registro y la sesión persistida localmente. */
+/** Centraliza cuentas y la sesión persistida localmente. */
 class UserRepository(context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private val userDao = AppDatabase.getInstance(context).userDao()
@@ -29,7 +33,7 @@ class UserRepository(context: Context) {
             !PersonNameValidator.isValid(maternalSurname) ||
             !RutValidator.isValid(normalizedRut) ||
             !EmailValidator.isValid(normalizedEmail) ||
-            password.length < 8
+            !PasswordValidator.isValid(password)
         ) return null
         if (userDao.findByEmail(normalizedEmail) != null || userDao.findByRut(normalizedRut) != null) {
             return null

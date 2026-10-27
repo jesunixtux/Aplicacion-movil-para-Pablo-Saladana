@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,6 +34,7 @@ import cl.duoc.coegio_pablo_saladana.data.UserGender
 import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
+import cl.duoc.coegio_pablo_saladana.validation.NotebookValidator
 import kotlinx.coroutines.launch
 
 /** Panel principal del docente con sus bitácoras publicadas. */
@@ -150,11 +152,11 @@ fun TeacherCreateNotebook(
     onPublish: suspend (NotebookDraft) -> Boolean,
     onPublished: () -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var purpose by remember { mutableStateOf("") }
-    var instructions by remember { mutableStateOf("") }
-    var questions by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf<String?>(null) }
+    var title by rememberSaveable { mutableStateOf("") }
+    var purpose by rememberSaveable { mutableStateOf("") }
+    var instructions by rememberSaveable { mutableStateOf("") }
+    var questions by rememberSaveable { mutableStateOf("") }
+    var message by rememberSaveable { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -180,7 +182,7 @@ fun TeacherCreateNotebook(
                 Button(
                     onClick = {
                         val draft = NotebookDraft(title, purpose, instructions, questions)
-                        if (!draft.isValid()) {
+                        if (!NotebookValidator.isValid(draft)) {
                             message = "Completa título, propósito e instrucciones."
                         } else {
                             scope.launch {

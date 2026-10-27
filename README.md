@@ -67,6 +67,15 @@ El APK de desarrollo se genera en:
 
 `app/build/outputs/apk/debug/app-debug.apk`
 
+## Dónde están las validaciones
+
+- `app/src/main/java/cl/duoc/coegio_pablo_saladana/validation/`: reglas de correo, nombre, RUT, contraseña, bitácoras y registros de clase.
+- `ui/`: recoge los datos y muestra los errores junto a los campos.
+- `data/`: contiene los borradores, normaliza los datos y vuelve a validarlos en los repositorios antes de guardarlos.
+- `app/src/test/`: prueba los casos válidos e inválidos de las reglas.
+
+Para depurar un rechazo, revisa primero la regla en `validation/`, luego el mensaje en la pantalla y finalmente la llamada desde el repositorio.
+
 ## SQLite y Room
 
 SQLite está incluido en Android. El proyecto usa Room como capa de acceso tipado y verificable sobre SQLite. Las dependencias ya están declaradas en `gradle/libs.versions.toml` y el compilador de Room se ejecuta mediante KSP.
