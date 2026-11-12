@@ -2,15 +2,21 @@ package cl.duoc.coegio_pablo_saladana.ui.student
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -133,18 +139,19 @@ fun StudentEntryForm(
     var learning by rememberSaveable { mutableStateOf("") }
     var doubts by rememberSaveable { mutableStateOf("") }
     var message by rememberSaveable { mutableStateOf<String?>(null) }
+    var attemptedSubmit by rememberSaveable { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val draft = StudentEntryDraft(date, content, activity, learning, doubts)
+    val errors = StudentEntryValidator.validateSubmission(draft)
     val saveEntry: (Boolean) -> Unit = { isDraft ->
-        val draft = StudentEntryDraft(date, content, activity, learning, doubts)
-        if ((!isDraft && !StudentEntryValidator.isComplete(draft)) ||
+        if (!isDraft) attemptedSubmit = true
+        if ((!isDraft && !errors.isValid) ||
             (isDraft && !StudentEntryValidator.hasContent(draft))) {
             message = if (isDraft) {
                 "Escribe al menos un dato antes de guardar el borrador."
-            } else if (!StudentEntryValidator.hasValidClassDate(draft)) {
-                "Ingresa una fecha válida con formato dd/MM/aaaa."
             } else {
-                "Completa fecha, contenido, actividad y aprendizaje."
+                "Revisa los campos marcados."
             }
         } else {
             scope.launch {
@@ -169,10 +176,50 @@ fun StudentEntryForm(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Text("Registro de clase", style = MaterialTheme.typography.headlineSmall) }
-            item { OutlinedTextField(date, { date = it }, label = { Text("Fecha de la clase") }, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(content, { content = it; message = null }, label = { Text("Contenido trabajado") }, minLines = 3, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(activity, { activity = it; message = null }, label = { Text("Actividad realizada") }, minLines = 3, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(learning, { learning = it; message = null }, label = { Text("¿Qué aprendí?") }, minLines = 3, modifier = Modifier.fillMaxWidth()) }
+            item {
+                OutlinedTextField(
+                    date, { date = it; message = null },
+                    label = { Text("Fecha de la clase") },
+                    isError = attemptedSubmit && errors.classDate,
+                    supportingText = {
+                        if (attemptedSubmit && errors.classDate) Text("Ingresa una fecha válida (dd/MM/aaaa).")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            item {
+                OutlinedTextField(
+                    content, { content = it; message = null },
+                    label = { Text("Contenido trabajado") }, minLines = 3,
+                    isError = attemptedSubmit && errors.content,
+                    supportingText = {
+                        if (attemptedSubmit && errors.content) Text("Ingresa el contenido trabajado.")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            item {
+                OutlinedTextField(
+                    activity, { activity = it; message = null },
+                    label = { Text("Actividad realizada") }, minLines = 3,
+                    isError = attemptedSubmit && errors.activity,
+                    supportingText = {
+                        if (attemptedSubmit && errors.activity) Text("Ingresa la actividad realizada.")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            item {
+                OutlinedTextField(
+                    learning, { learning = it; message = null },
+                    label = { Text("¿Qué aprendí?") }, minLines = 3,
+                    isError = attemptedSubmit && errors.learning,
+                    supportingText = {
+                        if (attemptedSubmit && errors.learning) Text("Describe lo que aprendiste.")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             item { OutlinedTextField(doubts, { doubts = it }, label = { Text("Dudas o dificultades") }, minLines = 3, modifier = Modifier.fillMaxWidth()) }
             item {
                 message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -180,14 +227,24 @@ fun StudentEntryForm(
                     onClick = { saveEntry(false) },
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
-                ) { if (isLoading) CircularProgressIndicator() else Text("Enviar registro") }
+                ) {
+                    if (isLoading) CircularProgressIndicator() else {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Enviar registro")
+                    }
+                }
             }
             item {
                 OutlinedButton(
                     onClick = { saveEntry(true) },
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Guardar como borrador") }
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Guardar como borrador")
+                }
             }
             item { EndOfContent("Fin del formulario") }
         }

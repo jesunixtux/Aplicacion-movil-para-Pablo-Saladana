@@ -3,15 +3,20 @@ package cl.duoc.coegio_pablo_saladana.ui.teacher
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -157,8 +162,11 @@ fun TeacherCreateNotebook(
     var instructions by rememberSaveable { mutableStateOf("") }
     var questions by rememberSaveable { mutableStateOf("") }
     var message by rememberSaveable { mutableStateOf<String?>(null) }
+    var attemptedPublish by rememberSaveable { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val draft = NotebookDraft(title, purpose, instructions, questions)
+    val errors = NotebookValidator.validate(draft)
 
     Scaffold(
         topBar = {
@@ -173,17 +181,45 @@ fun TeacherCreateNotebook(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Text("Configura la bitácora mensual", style = MaterialTheme.typography.headlineSmall) }
-            item { OutlinedTextField(title, { title = it; message = null }, label = { Text("Título") }, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(purpose, { purpose = it; message = null }, label = { Text("Propósito") }, minLines = 3, modifier = Modifier.fillMaxWidth()) }
-            item { OutlinedTextField(instructions, { instructions = it; message = null }, label = { Text("Instrucciones") }, minLines = 3, modifier = Modifier.fillMaxWidth()) }
+            item {
+                OutlinedTextField(
+                    title, { title = it; message = null }, label = { Text("Título") },
+                    isError = attemptedPublish && errors.title,
+                    supportingText = {
+                        if (attemptedPublish && errors.title) Text("Ingresa un título.")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            item {
+                OutlinedTextField(
+                    purpose, { purpose = it; message = null }, label = { Text("Propósito") },
+                    minLines = 3, isError = attemptedPublish && errors.purpose,
+                    supportingText = {
+                        if (attemptedPublish && errors.purpose) Text("Ingresa el propósito.")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            item {
+                OutlinedTextField(
+                    instructions, { instructions = it; message = null },
+                    label = { Text("Instrucciones") }, minLines = 3,
+                    isError = attemptedPublish && errors.instructions,
+                    supportingText = {
+                        if (attemptedPublish && errors.instructions) Text("Ingresa las instrucciones.")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             item { OutlinedTextField(questions, { questions = it; message = null }, label = { Text("Preguntas orientadoras") }, minLines = 3, modifier = Modifier.fillMaxWidth()) }
             item {
                 message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Button(
                     onClick = {
-                        val draft = NotebookDraft(title, purpose, instructions, questions)
-                        if (!NotebookValidator.isValid(draft)) {
-                            message = "Completa título, propósito e instrucciones."
+                        attemptedPublish = true
+                        if (!errors.isValid) {
+                            message = "Revisa los campos marcados."
                         } else {
                             scope.launch {
                                 loading = true
@@ -199,7 +235,13 @@ fun TeacherCreateNotebook(
                     },
                     enabled = !loading,
                     modifier = Modifier.fillMaxWidth()
-                ) { if (loading) CircularProgressIndicator() else Text("Publicar bitácora") }
+                ) {
+                    if (loading) CircularProgressIndicator() else {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Publicar bitácora")
+                    }
+                }
             }
             item { EndOfContent("Fin del formulario") }
         }

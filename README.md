@@ -67,9 +67,22 @@ El APK de desarrollo se genera en:
 
 `app/build/outputs/apk/debug/app-debug.apk`
 
+## Backend Spring Boot (primer avance de Evaluación Parcial 4)
+
+En `backend/` hay un servicio REST local para bitácoras. Requiere JDK 17 o superior y Maven Wrapper; la base H2 se crea automáticamente en `backend/data/` y no se versiona.
+
+```bash
+cd backend
+./mvnw test
+./mvnw spring-boot:run
+```
+
+El servidor escucha en `127.0.0.1:8080`. Endpoints: `GET /api/notebooks`, `GET /api/notebooks/{id}`, `POST /api/notebooks`, `PUT /api/notebooks/{id}` y `DELETE /api/notebooks/{id}`. Los cuerpos de escritura usan `title`, `purpose`, `instructions`, `questions` (opcional), `teacherEmail` y `teacherName`; los campos obligatorios se validan. Por ahora el servicio solo es de desarrollo local y no tiene autenticación. La aplicación Android sigue usando Room; aún falta conectarla al servicio, incorporar una API externa de educación, medir cobertura y preparar la firma del APK.
+
 ## Dónde están las validaciones
 
-- `app/src/main/java/cl/duoc/coegio_pablo_saladana/validation/`: reglas de correo, nombre, RUT, contraseña, bitácoras y registros de clase.
+- `app/src/main/java/cl/duoc/coegio_pablo_saladana/validation/`: reglas de correo, nombre, RUT, contraseña, bitácoras y registros de clase; los validadores de formularios devuelven errores por campo.
+- `ui/auth/AuthScreens.kt`: selecciona la vista; `LoginScreen.kt` y `RegisterScreen.kt` contienen cada formulario por separado.
 - `ui/`: recoge los datos y muestra los errores junto a los campos.
 - `data/`: contiene los borradores, normaliza los datos y vuelve a validarlos en los repositorios antes de guardarlos.
 - `app/src/test/`: prueba los casos válidos e inválidos de las reglas.
@@ -87,6 +100,8 @@ Las contraseñas nuevas se almacenan con una sal única y PBKDF2. Se usa HMAC-SH
 ## Fotos de perfil
 
 Las fotos elegidas desde galería o cámara pasan por un editor con giro, zoom y ajuste horizontal o vertical. Al guardar, la aplicación recorta la selección en formato cuadrado y genera un archivo JPEG de 64 × 64 píxeles. Las imágenes grandes se reducen al cargarlas en el editor para evitar usar memoria innecesaria. Las fotos guardadas por versiones anteriores se convierten automáticamente a 64 × 64 al cargar el perfil.
+
+La galería se abre con el selector de Android. La cámara solicita su permiso al usarla y abre la aplicación de cámara del dispositivo.
 
 Los valores visuales se pueden cambiar en `ProfilePhotoDefaults`, dentro de `ui/profile/ProfileAvatar.kt`:
 
@@ -136,6 +151,7 @@ adb shell pm clear cl.duoc.coegio_pablo_saladana
 - [ ] Las tarjetas aparecen suavemente y no cambian de posición con saltos al filtrar.
 - [ ] Al arrastrar después del inicio o final se muestra el efecto elástico del sistema.
 - [ ] El aviso de fin de contenido aparece al terminar cada lista.
+- [ ] Al girar el dispositivo, el formulario abierto conserva los datos escritos.
 
 ### Registro de cuenta
 
@@ -170,6 +186,7 @@ adb shell pm clear cl.duoc.coegio_pablo_saladana
 - [ ] Permite abrir el detalle de una bitácora.
 - [ ] Permite abrir el formulario de nuevo registro.
 - [ ] Valida campos del registro.
+- [ ] Al enviar un registro incompleto, muestra el error bajo cada campo obligatorio.
 - [ ] Permite guardar un borrador y conservarlo después de reiniciar.
 - [ ] Permite enviar un registro y conservarlo después de reiniciar.
 - [ ] Muestra el historial real con estado **Borrador** o **Enviado**.
@@ -181,6 +198,7 @@ adb shell pm clear cl.duoc.coegio_pablo_saladana
 - [ ] Muestra la cantidad y el listado de bitácoras publicadas por el docente activo.
 - [ ] Permite abrir la creación de una bitácora.
 - [ ] Valida título, propósito e instrucciones.
+- [ ] Al intentar publicar una bitácora incompleta, muestra el error bajo cada campo obligatorio.
 - [ ] Publica una bitácora y la conserva después de reiniciar la aplicación.
 - [ ] Permite revisar aportes.
 - [ ] Permite marcar aportes como revisados.
@@ -195,6 +213,8 @@ adb shell pm clear cl.duoc.coegio_pablo_saladana
 - [ ] La app vuelve a iniciar sin cuentas después de limpiar sus datos.
 
 ## Convenciones de trabajo
+
+Para evidenciar el trabajo en pareja, cada integrante debe hacer aportes propios desde su cuenta de GitHub en una rama. Revisen los cambios mediante pull requests antes de integrarlos en `main`.
 
 - Kotlin, Jetpack Compose y Material Design 3.
 - Arquitectura MVVM.

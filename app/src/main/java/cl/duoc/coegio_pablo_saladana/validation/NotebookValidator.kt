@@ -4,6 +4,15 @@ import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
 
 /** Exige los campos necesarios para publicar una bitácora. */
 object NotebookValidator {
-    fun isValid(draft: NotebookDraft): Boolean = draft.title.isNotBlank() &&
-        draft.purpose.isNotBlank() && draft.instructions.isNotBlank()
+    data class Errors(val title: Boolean, val purpose: Boolean, val instructions: Boolean) {
+        val isValid: Boolean get() = !title && !purpose && !instructions
+    }
+
+    fun validate(draft: NotebookDraft): Errors = Errors(
+        title = draft.title.isBlank(),
+        purpose = draft.purpose.isBlank(),
+        instructions = draft.instructions.isBlank()
+    )
+
+    fun isValid(draft: NotebookDraft): Boolean = validate(draft).isValid
 }

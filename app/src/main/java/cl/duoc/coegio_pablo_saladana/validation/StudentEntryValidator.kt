@@ -9,6 +9,15 @@ import java.util.Locale
 object StudentEntryValidator {
     private val classDatePattern = Regex("\\d{2}/\\d{2}/\\d{4}")
 
+    data class Errors(
+        val classDate: Boolean,
+        val content: Boolean,
+        val activity: Boolean,
+        val learning: Boolean
+    ) {
+        val isValid: Boolean get() = !classDate && !content && !activity && !learning
+    }
+
     fun hasContent(draft: StudentEntryDraft): Boolean = draft.content.isNotBlank() ||
         draft.activity.isNotBlank() || draft.learning.isNotBlank() || draft.doubts.isNotBlank()
 
@@ -22,6 +31,12 @@ object StudentEntryValidator {
         return parsedDate != null && position.index == draft.classDate.length
     }
 
-    fun isComplete(draft: StudentEntryDraft): Boolean = hasValidClassDate(draft) &&
-        draft.content.isNotBlank() && draft.activity.isNotBlank() && draft.learning.isNotBlank()
+    fun validateSubmission(draft: StudentEntryDraft): Errors = Errors(
+        classDate = !hasValidClassDate(draft),
+        content = draft.content.isBlank(),
+        activity = draft.activity.isBlank(),
+        learning = draft.learning.isBlank()
+    )
+
+    fun isComplete(draft: StudentEntryDraft): Boolean = validateSubmission(draft).isValid
 }

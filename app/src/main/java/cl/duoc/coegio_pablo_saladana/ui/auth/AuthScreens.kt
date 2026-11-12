@@ -2,17 +2,6 @@ package cl.duoc.coegio_pablo_saladana.ui.auth
 
 import android.graphics.Bitmap
 import android.net.Uri
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -22,36 +11,25 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import cl.duoc.coegio_pablo_saladana.data.AuthViewModel
 import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
 import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
@@ -60,20 +38,14 @@ import cl.duoc.coegio_pablo_saladana.data.StudentEntryEntity
 import cl.duoc.coegio_pablo_saladana.data.UserAccount
 import cl.duoc.coegio_pablo_saladana.data.UserGender
 import cl.duoc.coegio_pablo_saladana.data.UserRole
+import cl.duoc.coegio_pablo_saladana.ui.components.AppMotionDefaults
+import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileScreen
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentDashboard
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentEntryForm
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentHistory
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentNotebookDetail
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherCreateNotebook
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherDashboard
-import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileScreen
-import cl.duoc.coegio_pablo_saladana.ui.components.AppMotionDefaults
-import cl.duoc.coegio_pablo_saladana.validation.EmailValidator
-import cl.duoc.coegio_pablo_saladana.validation.PasswordValidator
-import cl.duoc.coegio_pablo_saladana.validation.PersonNameValidator
-import cl.duoc.coegio_pablo_saladana.validation.RutValidator
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /** Destinos que puede mostrar el contenedor principal de Compose. */
 enum class AuthDestination {
@@ -212,384 +184,7 @@ private fun WelcomeScreen(onDestinationChange: (AuthDestination) -> Unit) {
 }
 
 @Composable
-private fun LoginScreen(
-    authViewModel: AuthViewModel,
-    onDestinationChange: (AuthDestination) -> Unit,
-    onUserLoggedIn: (UserAccount) -> Unit
-) {
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
-    var message by rememberSaveable { mutableStateOf<String?>(null) }
-    var isError by rememberSaveable { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
-    var attemptedSubmit by rememberSaveable { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    AuthContainer {
-        Text("Iniciar sesión", style = MaterialTheme.typography.headlineMedium)
-        Text("Ingresa con tu cuenta de docente o estudiante.")
-
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it; message = null; isError = false },
-            label = { Text("Correo electrónico") },
-            singleLine = true,
-            isError = attemptedSubmit && (email.isBlank() || !EmailValidator.isValid(email)),
-            supportingText = {
-                if (attemptedSubmit && email.isBlank()) Text("Ingresa tu correo electrónico.")
-                else if (attemptedSubmit && !EmailValidator.isValid(email)) Text("Ingresa un correo válido.")
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it; message = null; isError = false },
-            label = { Text("Contraseña") },
-            singleLine = true,
-            isError = attemptedSubmit && password.isBlank(),
-            supportingText = { if (attemptedSubmit && password.isBlank()) Text("Ingresa tu contraseña.") },
-            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(
-                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        message?.let {
-            Text(it, color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-        }
-
-        Button(
-            onClick = {
-                attemptedSubmit = true
-                if (!EmailValidator.isValid(email) || password.isBlank()) {
-                    isError = true
-                    message = "Completa tu correo y contraseña."
-                } else {
-                    scope.launch {
-                        isLoading = true
-                        delay(500)
-                        val account = authViewModel.login(email, password)
-                        if (account == null) {
-                            isError = true
-                            message = "El correo o la contraseña no son correctos."
-                        } else if (account.role == UserRole.Student) {
-                            onUserLoggedIn(account)
-                            onDestinationChange(AuthDestination.StudentDashboard)
-                        } else {
-                            onUserLoggedIn(account)
-                            onDestinationChange(AuthDestination.TeacherDashboard)
-                        }
-                        isLoading = false
-                    }
-                }
-            },
-            enabled = !isLoading && EmailValidator.isValid(email) && password.isNotBlank(),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator()
-            } else {
-                Text("Entrar")
-            }
-        }
-
-        TextButton(onClick = { onDestinationChange(AuthDestination.Register) }) {
-            Text("¿No tienes cuenta? Regístrate")
-        }
-        TextButton(onClick = { onDestinationChange(AuthDestination.Welcome) }) {
-            Text("Volver")
-        }
-    }
-}
-
-@Composable
-private fun RegisterScreen(
-    authViewModel: AuthViewModel,
-    onDestinationChange: (AuthDestination) -> Unit,
-    onUserLoggedIn: (UserAccount) -> Unit
-) {
-    var firstName by rememberSaveable { mutableStateOf("") }
-    var middleName by rememberSaveable { mutableStateOf("") }
-    var paternalSurname by rememberSaveable { mutableStateOf("") }
-    var maternalSurname by rememberSaveable { mutableStateOf("") }
-    var rut by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var confirmPassword by rememberSaveable { mutableStateOf("") }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
-    var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
-    var selectedRole by rememberSaveable { mutableStateOf(UserRole.Student) }
-    var selectedGender by rememberSaveable { mutableStateOf(UserGender.Other) }
-    var message by rememberSaveable { mutableStateOf<String?>(null) }
-    var isError by rememberSaveable { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
-    var attemptedSubmit by rememberSaveable { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    AuthContainer {
-        Text("Crear cuenta", style = MaterialTheme.typography.headlineMedium)
-        Text("Usaremos datos ficticios para este MVP académico.")
-
-        OutlinedTextField(
-            value = firstName,
-            onValueChange = { firstName = PersonNameValidator.sanitize(it); message = null },
-            label = { Text("Nombre") },
-            singleLine = true,
-            isError = attemptedSubmit && !PersonNameValidator.isValid(firstName),
-            supportingText = { NameError(firstName, attemptedSubmit, "Ingresa un nombre válido.") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = middleName,
-            onValueChange = { middleName = PersonNameValidator.sanitize(it); message = null },
-            label = { Text("Segundo nombre") },
-            singleLine = true,
-            isError = attemptedSubmit && middleName.isNotBlank() && !PersonNameValidator.isValid(middleName),
-            supportingText = {
-                if (attemptedSubmit && middleName.isNotBlank() && !PersonNameValidator.isValid(middleName)) {
-                    Text("Usa solo letras, espacios o guiones.")
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = paternalSurname,
-            onValueChange = { paternalSurname = PersonNameValidator.sanitize(it); message = null },
-            label = { Text("Apellido paterno") },
-            singleLine = true,
-            isError = attemptedSubmit && !PersonNameValidator.isValid(paternalSurname),
-            supportingText = { NameError(paternalSurname, attemptedSubmit, "Ingresa un apellido paterno válido.") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = maternalSurname,
-            onValueChange = { maternalSurname = PersonNameValidator.sanitize(it); message = null },
-            label = { Text("Apellido materno") },
-            singleLine = true,
-            isError = attemptedSubmit && !PersonNameValidator.isValid(maternalSurname),
-            supportingText = { NameError(maternalSurname, attemptedSubmit, "Ingresa un apellido materno válido.") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = rut,
-            onValueChange = {
-                val formattedRut = RutValidator.format(it.text)
-                val cursor = RutValidator.formattedCursorPosition(it.text, it.selection.end)
-                rut = TextFieldValue(formattedRut, TextRange(cursor))
-                message = null
-            },
-            label = { Text("RUT, por ejemplo 12.345.678-5") },
-            singleLine = true,
-            isError = attemptedSubmit && !RutValidator.isValid(rut.text),
-            supportingText = {
-                if (attemptedSubmit && !RutValidator.isValid(rut.text)) Text("Ingresa un RUT válido.")
-            },
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Characters,
-                keyboardType = KeyboardType.Text
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it; message = null },
-            label = { Text("Correo electrónico") },
-            singleLine = true,
-            isError = attemptedSubmit && (email.isBlank() || !EmailValidator.isValid(email)),
-            supportingText = {
-                if (attemptedSubmit && email.isBlank()) Text("Ingresa tu correo electrónico.")
-                else if (attemptedSubmit && !EmailValidator.isValid(email)) Text("Ingresa un correo válido.")
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it; message = null },
-            label = { Text("Contraseña") },
-            singleLine = true,
-            isError = attemptedSubmit && !PasswordValidator.isValid(password),
-            supportingText = {
-                if (attemptedSubmit && password.isBlank()) Text("Ingresa una contraseña.")
-                else if (attemptedSubmit && !PasswordValidator.isValid(password)) Text("Debe tener al menos 8 caracteres.")
-            },
-            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(
-                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it; message = null },
-            label = { Text("Confirmar contraseña") },
-            singleLine = true,
-            isError = attemptedSubmit && (confirmPassword.isBlank() || confirmPassword != password),
-            supportingText = {
-                if (attemptedSubmit && confirmPassword.isBlank()) Text("Confirma tu contraseña.")
-                else if (attemptedSubmit && confirmPassword != password) Text("Las contraseñas no coinciden.")
-            },
-            visualTransformation = if (confirmPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                    Icon(
-                        imageVector = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = if (confirmPasswordVisible) "Ocultar confirmación" else "Mostrar confirmación"
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Text("Perfil", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            RoleOption("Estudiante", UserRole.Student, selectedRole) { selectedRole = it }
-            RoleOption("Docente", UserRole.Teacher, selectedRole) { selectedRole = it }
-        }
-
-        Text("Género", style = MaterialTheme.typography.titleMedium)
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            GenderOption("Masculino", UserGender.Male, selectedGender) { selectedGender = it }
-            GenderOption("Femenino", UserGender.Female, selectedGender) { selectedGender = it }
-            GenderOption("Otro", UserGender.Other, selectedGender) { selectedGender = it }
-        }
-
-        message?.let {
-            Text(it, color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-        }
-
-        Button(
-            onClick = {
-                attemptedSubmit = true
-                when {
-                    firstName.isBlank() || paternalSurname.isBlank() || maternalSurname.isBlank() ||
-                        rut.text.isBlank() || email.isBlank() || password.isBlank() -> {
-                        isError = true
-                        message = "Completa todos los campos."
-                    }
-                    !PersonNameValidator.isValid(firstName) ||
-                        (middleName.isNotBlank() && !PersonNameValidator.isValid(middleName)) ||
-                        !PersonNameValidator.isValid(paternalSurname) ||
-                        !PersonNameValidator.isValid(maternalSurname) -> {
-                        isError = true
-                        message = "Los nombres y apellidos solo pueden contener letras."
-                    }
-                    !RutValidator.isValid(rut.text) -> {
-                        isError = true
-                        message = "Ingresa un RUT válido, por ejemplo 12.345.678-5 o 7.654.321-K."
-                    }
-                    !EmailValidator.isValid(email) -> {
-                        isError = true
-                        message = "Ingresa un correo válido."
-                    }
-                    !PasswordValidator.isValid(password) -> {
-                        isError = true
-                        message = "La contraseña debe tener al menos 8 caracteres."
-                    }
-                    confirmPassword != password -> {
-                        isError = true
-                        message = "Las contraseñas no coinciden."
-                    }
-                    else -> {
-                        scope.launch {
-                            isLoading = true
-                            delay(500)
-                            val account = authViewModel.register(
-                                    firstName = firstName,
-                                    middleName = middleName,
-                                    paternalSurname = paternalSurname,
-                                    maternalSurname = maternalSurname,
-                                    rut = rut.text,
-                                    email = email,
-                                    password = password,
-                                    role = selectedRole,
-                                    gender = selectedGender
-                                )
-                            if (account != null) {
-                                onUserLoggedIn(account)
-                                onDestinationChange(
-                                    if (account.role == UserRole.Student) {
-                                        AuthDestination.StudentDashboard
-                                    } else {
-                                        AuthDestination.TeacherDashboard
-                                    }
-                                )
-                            } else {
-                                isError = true
-                                message = "Ya existe una cuenta con ese correo o RUT."
-                            }
-                            isLoading = false
-                        }
-                    }
-                }
-            },
-            enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator()
-            } else {
-                Text("Crear cuenta")
-            }
-        }
-
-        TextButton(onClick = { onDestinationChange(AuthDestination.Login) }) {
-            Text("¿Ya tienes cuenta? Inicia sesión")
-        }
-        TextButton(onClick = { onDestinationChange(AuthDestination.Welcome) }) {
-            Text("Volver")
-        }
-    }
-}
-
-@Composable
-private fun RoleOption(
-    label: String,
-    role: UserRole,
-    selectedRole: UserRole,
-    onSelected: (UserRole) -> Unit
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        RadioButton(selected = selectedRole == role, onClick = { onSelected(role) })
-        Text(label)
-    }
-}
-
-@Composable
-private fun GenderOption(
-    label: String,
-    gender: UserGender,
-    selectedGender: UserGender,
-    onSelected: (UserGender) -> Unit
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        RadioButton(selected = selectedGender == gender, onClick = { onSelected(gender) })
-        Text(label)
-    }
-}
-
-@Composable
-private fun NameError(value: String, attemptedSubmit: Boolean, requiredMessage: String) {
-    if (attemptedSubmit && !PersonNameValidator.isValid(value)) {
-        Text(if (value.isBlank()) requiredMessage else "Usa solo letras, espacios o guiones.")
-    }
-}
-
-@Composable
-private fun AuthContainer(content: @Composable () -> Unit) {
+internal fun AuthContainer(content: @Composable () -> Unit) {
     Surface {
         Column(
             modifier = Modifier

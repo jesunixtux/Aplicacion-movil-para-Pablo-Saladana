@@ -26,4 +26,16 @@ class StudentEntryDraftTest {
         assertTrue(StudentEntryValidator.hasContent(StudentEntryDraft("18/10/2026", "Tema", "", "", "")))
         assertFalse(StudentEntryValidator.hasContent(StudentEntryDraft("18/10/2026", " ", "", "", "")))
     }
+
+    @Test
+    fun submissionReportsEachInvalidField() {
+        val errors = StudentEntryValidator.validateSubmission(
+            StudentEntryDraft("31/02/2026", "Tema", " ", "", "Duda")
+        )
+        assertTrue(errors.classDate)
+        assertFalse(errors.content)
+        assertTrue(errors.activity)
+        assertTrue(errors.learning)
+        assertFalse(errors.isValid)
+    }
 }

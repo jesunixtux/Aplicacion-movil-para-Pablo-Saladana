@@ -26,4 +26,13 @@ class NotebookDraftTest {
         assertFalse(NotebookValidator.isValid(NotebookDraft("Título", " ", "Instrucciones", "")))
         assertFalse(NotebookValidator.isValid(NotebookDraft("Título", "Propósito", " ", "")))
     }
+
+    @Test
+    fun validateIdentifiesOnlyMissingFields() {
+        val errors = NotebookValidator.validate(NotebookDraft("Título", " ", "Instrucciones", ""))
+        assertFalse(errors.title)
+        assertTrue(errors.purpose)
+        assertFalse(errors.instructions)
+        assertFalse(errors.isValid)
+    }
 }
