@@ -33,6 +33,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cl.duoc.coegio_pablo_saladana.data.ChileanHoliday
+import cl.duoc.coegio_pablo_saladana.data.HolidayRemoteDataSource
 import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.data.StudentEntryDraft
 import cl.duoc.coegio_pablo_saladana.data.StudentEntryEntity
@@ -127,23 +129,29 @@ private fun InfoCard(title: String, content: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentEntryForm(
+    initialEntry: StudentEntryEntity? = null,
+    holidays: List<ChileanHoliday> = emptyList(),
     onBack: () -> Unit,
     onSave: suspend (StudentEntryDraft, Boolean) -> Boolean,
     onSaved: () -> Unit
 ) {
-    var date by rememberSaveable {
-        mutableStateOf(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()))
+    var date by rememberSaveable(initialEntry?.id) {
+        mutableStateOf(
+            initialEntry?.classDate
+                ?: SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+        )
     }
-    var content by rememberSaveable { mutableStateOf("") }
-    var activity by rememberSaveable { mutableStateOf("") }
-    var learning by rememberSaveable { mutableStateOf("") }
-    var doubts by rememberSaveable { mutableStateOf("") }
-    var message by rememberSaveable { mutableStateOf<String?>(null) }
-    var attemptedSubmit by rememberSaveable { mutableStateOf(false) }
+    var content by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.content ?: "") }
+    var activity by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.activity ?: "") }
+    var learning by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.learning ?: "") }
+    var doubts by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.doubts ?: "") }
+    var message by rememberSaveable(initialEntry?.id) { mutableStateOf<String?>(null) }
+    var attemptedSubmit by rememberSaveable(initialEntry?.id) { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val draft = StudentEntryDraft(date, content, activity, learning, doubts)
     val errors = StudentEntryValidator.validateSubmission(draft)
+    val matchedHoliday = HolidayRemoteDataSource.findHolidayForClassDate(date, holidays)
     val saveEntry: (Boolean) -> Unit = { isDraft ->
         if (!isDraft) attemptedSubmit = true
         if ((!isDraft && !errors.isValid) ||
@@ -166,7 +174,7 @@ fun StudentEntryForm(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nuevo registro") },
+                title = { Text(if (initialEntry != null) "Editar borrador" else "Nuevo registro") },
                 navigationIcon = { TextButton(onClick = onBack) { Text("Atrás") } }
             )
         }
@@ -182,7 +190,14 @@ fun StudentEntryForm(
                     label = { Text("Fecha de la clase") },
                     isError = attemptedSubmit && errors.classDate,
                     supportingText = {
-                        if (attemptedSubmit && errors.classDate) Text("Ingresa una fecha válida (dd/MM/aaaa).")
+                        if (attemptedSubmit && errors.classDate) {
+                            Text("Ingresa una fecha válida (dd/MM/aaaa).")
+                        } else if (matchedHoliday != null) {
+                            Text(
+                                "Aviso API Feriados Chile: ${matchedHoliday.localName}",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -254,7 +269,11 @@ fun StudentEntryForm(
 /** Lista los registros guardados por la cuenta estudiante actual. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentHistory(entries: List<StudentEntryEntity>, onBack: () -> Unit) {
+fun StudentHistory(
+    entries: List<StudentEntryEntity>,
+    onEditDraft: (StudentEntryEntity) -> Unit = {},
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -276,8 +295,28 @@ fun StudentHistory(entries: List<StudentEntryEntity>, onBack: () -> Unit) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("${entry.classDate} · ${entry.notebookTitle}", style = MaterialTheme.typography.titleMedium)
-                            Text(if (entry.isDraft) "Borrador" else "Enviado", color = MaterialTheme.colorScheme.primary)
+                            val statusLabel = when {
+                                entry.isDraft -> "Borrador"
+                                entry.isReviewed -> "Enviado · Revisado por docente"
+                                else -> "Enviado"
+                            }
+                            Text(statusLabel, color = MaterialTheme.colorScheme.primary)
                             Text(entry.learning.ifBlank { entry.content })
+                            if (entry.teacherFeedback.isNotBlank()) {
+                                Text(
+                                    "Retroalimentación docente: ${entry.teacherFeedback}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                            if (entry.isDraft) {
+                                OutlinedButton(
+                                    onClick = { onEditDraft(entry) },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Completar o enviar borrador")
+                                }
+                            }
                         }
                     }
                 }

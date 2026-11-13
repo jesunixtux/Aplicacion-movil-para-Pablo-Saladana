@@ -21,4 +21,37 @@ interface StudentEntryDao {
         """
     )
     suspend fun findSubmittedByTeacher(email: String): List<StudentEntryEntity>
+
+    @Query("SELECT * FROM student_entries WHERE id = :id LIMIT 1")
+    suspend fun findById(id: Long): StudentEntryEntity?
+
+    @Query(
+        """
+        UPDATE student_entries
+        SET classDate = :classDate, content = :content, activity = :activity,
+            learning = :learning, doubts = :doubts, isDraft = :isDraft
+        WHERE id = :id AND studentEmail = :studentEmail AND isDraft = 1
+        """
+    )
+    suspend fun updateDraft(
+        id: Long,
+        studentEmail: String,
+        classDate: String,
+        content: String,
+        activity: String,
+        learning: String,
+        doubts: String,
+        isDraft: Boolean
+    ): Int
+
+    @Query(
+        """
+        UPDATE student_entries
+        SET isReviewed = 1, teacherFeedback = :feedback
+        WHERE id = :id AND isDraft = 0 AND notebookId IN (
+            SELECT id FROM notebooks WHERE teacherEmail = :teacherEmail
+        )
+        """
+    )
+    suspend fun markReviewed(id: Long, teacherEmail: String, feedback: String): Int
 }

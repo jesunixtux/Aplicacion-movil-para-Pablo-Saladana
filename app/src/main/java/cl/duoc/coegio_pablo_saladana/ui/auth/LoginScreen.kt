@@ -23,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import cl.duoc.coegio_pablo_saladana.data.AuthViewModel
 import cl.duoc.coegio_pablo_saladana.data.UserAccount
 import cl.duoc.coegio_pablo_saladana.data.UserRole
 import cl.duoc.coegio_pablo_saladana.validation.AuthFormValidator

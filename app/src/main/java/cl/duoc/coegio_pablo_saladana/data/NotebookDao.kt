@@ -11,4 +11,7 @@ interface NotebookDao {
 
     @Query("SELECT * FROM notebooks ORDER BY createdAt DESC, id DESC")
     suspend fun findAll(): List<NotebookEntity>
+
+    @Query("SELECT * FROM notebooks WHERE title = :title AND teacherEmail = :teacherEmail LIMIT 1")
+    suspend fun findByTitleAndTeacher(title: String, teacherEmail: String): NotebookEntity?
 }

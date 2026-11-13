@@ -30,7 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cl.duoc.coegio_pablo_saladana.data.AuthViewModel
+import cl.duoc.coegio_pablo_saladana.data.ChileanHoliday
 import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
 import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.data.StudentEntryDraft
@@ -69,14 +69,19 @@ fun AuthScreens(
     currentAccount: UserAccount?,
     notebooks: List<NotebookEntity>,
     selectedNotebook: NotebookEntity?,
+    editingEntry: StudentEntryEntity?,
     studentEntries: List<StudentEntryEntity>,
     teacherEntries: List<StudentEntryEntity>,
+    holidays: List<ChileanHoliday>,
     profilePhotoUri: Uri?,
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit,
     onNotebookSelected: (NotebookEntity) -> Unit,
+    onStartNewEntry: () -> Unit,
+    onEditDraftEntry: (StudentEntryEntity) -> Unit,
     onNotebookPublished: suspend (NotebookDraft) -> Boolean,
     onStudentEntrySaved: suspend (StudentEntryDraft, Boolean) -> Boolean,
+    onReviewEntry: suspend (Long, String) -> Boolean,
     onPhotoEdited: (Bitmap) -> Unit,
     onUserLoggedOut: () -> Unit
 ) {
@@ -102,6 +107,7 @@ fun AuthScreens(
             gender = currentAccount?.gender ?: UserGender.Other,
             profilePhotoUri = profilePhotoUri,
             notebooks = notebooks,
+            holidays = holidays,
             onLogout = onUserLoggedOut,
             onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
             onOpenNotebook = onNotebookSelected,
@@ -110,16 +116,25 @@ fun AuthScreens(
         AuthDestination.StudentNotebook -> StudentNotebookDetail(
             notebook = selectedNotebook,
             onBack = { onDestinationChange(AuthDestination.StudentDashboard) },
-            onCreateEntry = { onDestinationChange(AuthDestination.StudentEntry) }
+            onCreateEntry = onStartNewEntry
         )
         AuthDestination.StudentEntry -> StudentEntryForm(
-            onBack = { onDestinationChange(AuthDestination.StudentNotebook) },
+            initialEntry = editingEntry,
+            holidays = holidays,
+            onBack = {
+                onDestinationChange(
+                    if (editingEntry != null) AuthDestination.StudentHistory
+                    else AuthDestination.StudentNotebook
+                )
+            },
             onSave = onStudentEntrySaved,
             onSaved = { onDestinationChange(AuthDestination.StudentHistory) }
         )
-        AuthDestination.StudentHistory -> StudentHistory(studentEntries) {
-            onDestinationChange(AuthDestination.StudentDashboard)
-        }
+        AuthDestination.StudentHistory -> StudentHistory(
+            entries = studentEntries,
+            onEditDraft = onEditDraftEntry,
+            onBack = { onDestinationChange(AuthDestination.StudentDashboard) }
+        )
         AuthDestination.TeacherDashboard -> TeacherDashboard(
             fullName = currentAccount?.fullName ?: "Docente",
             rut = currentAccount?.rut ?: "RUT no disponible",
@@ -127,9 +142,11 @@ fun AuthScreens(
             profilePhotoUri = profilePhotoUri,
             notebooks = notebooks.filter { it.teacherEmail == currentAccount?.email },
             submittedEntries = teacherEntries,
+            holidays = holidays,
             onLogout = onUserLoggedOut,
             onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
-            onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) }
+            onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) },
+            onReviewEntry = onReviewEntry
         )
         AuthDestination.TeacherCreateNotebook -> TeacherCreateNotebook(
             onBack = { onDestinationChange(AuthDestination.TeacherDashboard) },

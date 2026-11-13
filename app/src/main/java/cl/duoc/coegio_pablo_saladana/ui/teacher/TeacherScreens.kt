@@ -32,17 +32,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cl.duoc.coegio_pablo_saladana.data.ChileanHoliday
 import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
 import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.data.StudentEntryEntity
 import cl.duoc.coegio_pablo_saladana.data.UserGender
 import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
+import cl.duoc.coegio_pablo_saladana.ui.components.greetingFor
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
 import cl.duoc.coegio_pablo_saladana.validation.NotebookValidator
 import kotlinx.coroutines.launch
 
-/** Panel principal del docente con sus bitácoras publicadas. */
+/** Panel principal del docente con sus bitácoras publicadas y revisión de aportes. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TeacherDashboard(
@@ -52,10 +54,16 @@ fun TeacherDashboard(
     profilePhotoUri: Uri?,
     notebooks: List<NotebookEntity>,
     submittedEntries: List<StudentEntryEntity>,
+    holidays: List<ChileanHoliday>,
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
-    onCreateNotebook: () -> Unit
+    onCreateNotebook: () -> Unit,
+    onReviewEntry: suspend (Long, String) -> Boolean
 ) {
+    val scope = rememberCoroutineScope()
+    val reviewedCount = submittedEntries.count { it.isReviewed }
+    val nextHoliday = holidays.firstOrNull()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -86,16 +94,32 @@ fun TeacherDashboard(
             }
             item {
                 AnimatedListItem(1) {
-                    MetricCard(notebooks.size.toString(), "Bitácoras publicadas", Modifier.fillMaxWidth())
+                    MetricCard(
+                        "${notebooks.size} bitácoras · $reviewedCount/${submittedEntries.size} revisados",
+                        "Resumen de seguimiento docente",
+                        Modifier.fillMaxWidth()
+                    )
+                }
+            }
+            if (nextHoliday != null) {
+                item {
+                    AnimatedListItem(2) {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Calendario escolar (API Feriados Chile)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                Text("${nextHoliday.formattedDate} · ${nextHoliday.localName}", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
                 }
             }
             itemsIndexed(notebooks, key = { _, notebook -> "notebook-${notebook.id}" }) { index, notebook ->
-                AnimatedListItem(index + 2, Modifier.animateItem()) {
+                AnimatedListItem(index + 3, Modifier.animateItem()) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(notebook.title, style = MaterialTheme.typography.titleLarge)
                             Text(notebook.purpose)
-                            Text("Publicada", color = MaterialTheme.colorScheme.primary)
+                            Text("Publicada · Sincronizada con microservicio", color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -107,21 +131,52 @@ fun TeacherDashboard(
                 item { Text("Aún no hay registros enviados por estudiantes.") }
             }
             itemsIndexed(submittedEntries, key = { _, entry -> "entry-${entry.id}" }) { index, entry ->
-                AnimatedListItem(index + notebooks.size + 3, Modifier.animateItem()) {
+                var feedbackText by rememberSaveable(entry.id) { mutableStateOf(entry.teacherFeedback) }
+                var isSavingReview by remember(entry.id) { mutableStateOf(false) }
+
+                AnimatedListItem(index + notebooks.size + 4, Modifier.animateItem()) {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(entry.studentName, style = MaterialTheme.typography.titleMedium)
                             Text("${entry.notebookTitle} · ${entry.classDate}")
+                            Text(
+                                if (entry.isReviewed) "Estado: Revisado" else "Estado: Pendiente de revisión",
+                                color = if (entry.isReviewed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                                style = MaterialTheme.typography.labelLarge
+                            )
                             Text("Contenido: ${entry.content}")
                             Text("Actividad: ${entry.activity}")
                             Text("Aprendizaje: ${entry.learning}")
                             if (entry.doubts.isNotBlank()) Text("Dudas: ${entry.doubts}")
+
+                            OutlinedTextField(
+                                value = feedbackText,
+                                onValueChange = { feedbackText = it },
+                                label = { Text("Retroalimentación docente (opcional)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        isSavingReview = true
+                                        onReviewEntry(entry.id, feedbackText)
+                                        isSavingReview = false
+                                    }
+                                },
+                                enabled = !isSavingReview && (!entry.isReviewed || feedbackText.trim() != entry.teacherFeedback),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(if (entry.isReviewed) "Actualizar revisión" else "Marcar como revisado")
+                            }
                         }
                     }
                 }
             }
             item {
-                AnimatedListItem(notebooks.size + 2) {
+                AnimatedListItem(notebooks.size + 3) {
                     Button(onClick = onCreateNotebook, modifier = Modifier.fillMaxWidth()) {
                         Text("Crear nueva bitácora")
                     }
@@ -131,14 +186,6 @@ fun TeacherDashboard(
         }
     }
 }
-private fun greetingFor(fullName: String, gender: UserGender): String {
-    return when (gender) {
-        UserGender.Male -> "Hola Sr. $fullName"
-        UserGender.Female -> "Hola Sra. $fullName"
-        UserGender.Other -> "Hola, $fullName"
-    }
-}
-
 @Composable
 private fun MetricCard(value: String, label: String, modifier: Modifier) {
     Card(modifier = modifier) {

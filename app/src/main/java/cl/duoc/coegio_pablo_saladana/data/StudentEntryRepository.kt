@@ -41,4 +41,38 @@ class StudentEntryRepository(context: Context) {
         val id = entryDao.insert(entry)
         return entry.copy(id = id)
     }
+
+    suspend fun updateDraft(
+        entryId: Long,
+        draft: StudentEntryDraft,
+        isDraft: Boolean,
+        student: UserAccount
+    ): StudentEntryEntity? {
+        if (student.role != UserRole.Student) return null
+        val normalizedDraft = draft.normalized()
+        if (!StudentEntryValidator.hasContent(normalizedDraft) ||
+            (!isDraft && !StudentEntryValidator.isComplete(normalizedDraft))) return null
+
+        val updated = entryDao.updateDraft(
+            id = entryId,
+            studentEmail = student.email,
+            classDate = normalizedDraft.classDate,
+            content = normalizedDraft.content,
+            activity = normalizedDraft.activity,
+            learning = normalizedDraft.learning,
+            doubts = normalizedDraft.doubts,
+            isDraft = isDraft
+        )
+        return if (updated > 0) entryDao.findById(entryId) else null
+    }
+
+    suspend fun markReviewed(
+        entryId: Long,
+        teacher: UserAccount,
+        feedback: String
+    ): StudentEntryEntity? {
+        if (teacher.role != UserRole.Teacher) return null
+        val updated = entryDao.markReviewed(entryId, teacher.email, feedback.trim())
+        return if (updated > 0) entryDao.findById(entryId) else null
+    }
 }

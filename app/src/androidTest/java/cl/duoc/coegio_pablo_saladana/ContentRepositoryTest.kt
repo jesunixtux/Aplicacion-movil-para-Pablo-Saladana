@@ -41,10 +41,28 @@ class ContentRepositoryTest {
         val otherNotebook = requireNotNull(notebooks.create(validNotebookDraft(), otherTeacher))
 
         val submitted = requireNotNull(entries.create(validEntryDraft(), false, student, ownNotebook))
-        entries.create(validEntryDraft(), true, student, ownNotebook)
+        val draft = requireNotNull(entries.create(validEntryDraft(), true, student, ownNotebook))
         entries.create(validEntryDraft(), false, student, otherNotebook)
 
         assertEquals(listOf(submitted.id), entries.findSubmittedByTeacher(teacher.email).map { it.id })
+
+        val updatedDraft = requireNotNull(
+            entries.updateDraft(
+                draft.id,
+                validEntryDraft().copy(learning = "Aprendizaje completado"),
+                isDraft = false,
+                student = student
+            )
+        )
+        assertEquals(false, updatedDraft.isDraft)
+        assertEquals("Aprendizaje completado", updatedDraft.learning)
+
+        val reviewed = requireNotNull(
+            entries.markReviewed(submitted.id, teacher, "Muy buen trabajo")
+        )
+        assertEquals(true, reviewed.isReviewed)
+        assertEquals("Muy buen trabajo", reviewed.teacherFeedback)
+        assertNull(entries.markReviewed(submitted.id, otherTeacher, "Intento no autorizado"))
     }
 
     private fun account(role: UserRole, email: String = "prueba.qa@example.com") = UserAccount(

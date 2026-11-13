@@ -19,10 +19,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cl.duoc.coegio_pablo_saladana.data.ChileanHoliday
 import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.data.UserGender
 import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
+import cl.duoc.coegio_pablo_saladana.ui.components.greetingFor
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
 
 /** Panel principal del estudiante con las bitácoras disponibles. */
@@ -34,11 +36,13 @@ fun StudentDashboard(
     gender: UserGender,
     profilePhotoUri: Uri?,
     notebooks: List<NotebookEntity>,
+    holidays: List<ChileanHoliday>,
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenNotebook: (NotebookEntity) -> Unit,
     onOpenHistory: () -> Unit
 ) {
+    val nextHoliday = holidays.firstOrNull()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -75,12 +79,35 @@ fun StudentDashboard(
                 }
             }
 
+            if (nextHoliday != null) {
+                item(key = "holiday-banner") {
+                    AnimatedListItem(index = 1) {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    "Calendario escolar · API Feriados de Chile",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    "Feriado oficial: ${nextHoliday.formattedDate} (${nextHoliday.localName})",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             itemsIndexed(
                 items = notebooks,
                 key = { _, notebook -> notebook.id }
             ) { index, notebook ->
                 AnimatedListItem(
-                    index = index + 1,
+                    index = index + 2,
                     modifier = Modifier.animateItem()
                 ) {
                     NotebookCard(notebook) { onOpenNotebook(notebook) }
@@ -90,14 +117,6 @@ fun StudentDashboard(
                 EndOfContent(if (notebooks.isEmpty()) "Aún no hay bitácoras publicadas" else "No hay más bitácoras")
             }
         }
-    }
-}
-
-private fun greetingFor(fullName: String, gender: UserGender): String {
-    return when (gender) {
-        UserGender.Male -> "Hola Sr. $fullName"
-        UserGender.Female -> "Hola Sra. $fullName"
-        UserGender.Other -> "Hola, $fullName"
     }
 }
 

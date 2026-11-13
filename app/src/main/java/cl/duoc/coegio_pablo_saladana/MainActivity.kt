@@ -24,8 +24,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import cl.duoc.coegio_pablo_saladana.data.AuthViewModel
+import cl.duoc.coegio_pablo_saladana.data.ChileanHoliday
 import cl.duoc.coegio_pablo_saladana.data.DebugDataSeeder
+import cl.duoc.coegio_pablo_saladana.data.HolidayRemoteDataSource
 import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
 import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.data.NotebookRepository
@@ -38,8 +39,11 @@ import cl.duoc.coegio_pablo_saladana.data.UserRepository
 import cl.duoc.coegio_pablo_saladana.data.UserRole
 import cl.duoc.coegio_pablo_saladana.ui.auth.AuthDestination
 import cl.duoc.coegio_pablo_saladana.ui.auth.AuthScreens
+import cl.duoc.coegio_pablo_saladana.ui.auth.AuthViewModel
 import cl.duoc.coegio_pablo_saladana.ui.theme.CoegioPabloSaladanaTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Coordina la sesión activa y la navegación principal de la aplicación. */
 class MainActivity : ComponentActivity() {
@@ -64,8 +68,11 @@ class MainActivity : ComponentActivity() {
                 var notebooks by remember { mutableStateOf<List<NotebookEntity>>(emptyList()) }
                 var selectedNotebookId by rememberSaveable { mutableStateOf<Long?>(null) }
                 val selectedNotebook = notebooks.firstOrNull { it.id == selectedNotebookId }
+                var editingEntryId by rememberSaveable { mutableStateOf<Long?>(null) }
                 var studentEntries by remember { mutableStateOf<List<StudentEntryEntity>>(emptyList()) }
+                val editingEntry = studentEntries.firstOrNull { it.id == editingEntryId }
                 var teacherEntries by remember { mutableStateOf<List<StudentEntryEntity>>(emptyList()) }
+                var holidays by remember { mutableStateOf<List<ChileanHoliday>>(emptyList()) }
                 var profilePhotoUri by remember { mutableStateOf<Uri?>(null) }
                 var isRestoringSession by remember { mutableStateOf(true) }
 
@@ -87,20 +94,32 @@ class MainActivity : ComponentActivity() {
                         ?.let { studentEntryRepository.findSubmittedByTeacher(it.email) }
                         ?: emptyList()
                     currentAccount = restoredSession
-                    profilePhotoUri = restoredSession?.let { profilePhotoStorage.uriFor(it.email) }
+                    profilePhotoUri = restoredSession?.let {
+                        withContext(Dispatchers.IO) { profilePhotoStorage.uriFor(it.email) }
+                    }
                     destination = destinationForSession(
                         if (savedInstanceState == null) null else destination,
                         restoredSession?.role,
-                        notebooks.any { it.id == selectedNotebookId }
+                        notebooks.any { it.id == selectedNotebookId } ||
+                            studentEntries.any { it.id == editingEntryId }
                     )
                     isRestoringSession = false
+
+                    // Sincroniza microservicio Spring Boot y API externa en segundo plano sin bloquear el inicio.
+                    notebooks = notebookRepository.syncWithBackend()
+                    holidays = HolidayRemoteDataSource.fetchHolidays()
                 }
 
                 BackHandler(enabled = !isRestoringSession && destination != AuthDestination.Welcome) {
                     destination = when (destination) {
                         AuthDestination.Login, AuthDestination.Register -> AuthDestination.Welcome
                         AuthDestination.StudentNotebook, AuthDestination.StudentHistory -> AuthDestination.StudentDashboard
-                        AuthDestination.StudentEntry -> AuthDestination.StudentNotebook
+                        AuthDestination.StudentEntry -> if (editingEntry != null) {
+                            editingEntryId = null
+                            AuthDestination.StudentHistory
+                        } else {
+                            AuthDestination.StudentNotebook
+                        }
                         AuthDestination.TeacherCreateNotebook -> AuthDestination.TeacherDashboard
                         AuthDestination.Profile -> if (currentAccount?.role == cl.duoc.coegio_pablo_saladana.data.UserRole.Teacher) {
                             AuthDestination.TeacherDashboard
@@ -127,15 +146,20 @@ class MainActivity : ComponentActivity() {
                                 currentAccount = currentAccount,
                                 notebooks = notebooks,
                                 selectedNotebook = selectedNotebook,
+                                editingEntry = editingEntry,
                                 studentEntries = studentEntries,
                                 teacherEntries = teacherEntries,
+                                holidays = holidays,
                                 profilePhotoUri = profilePhotoUri,
                                 onDestinationChange = { destination = it },
                                 onUserLoggedIn = {
                                     currentAccount = it
                                     authViewModel.saveSession(it)
-                                    profilePhotoUri = profilePhotoStorage.uriFor(it.email)
                                     scope.launch {
+                                        profilePhotoUri = withContext(Dispatchers.IO) {
+                                            profilePhotoStorage.uriFor(it.email)
+                                        }
+                                        notebooks = notebookRepository.syncWithBackend()
                                         studentEntries = if (it.role == UserRole.Student) {
                                             studentEntryRepository.findByStudent(it.email)
                                         } else {
@@ -150,7 +174,17 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onNotebookSelected = {
                                     selectedNotebookId = it.id
+                                    editingEntryId = null
                                     destination = AuthDestination.StudentNotebook
+                                },
+                                onStartNewEntry = {
+                                    editingEntryId = null
+                                    destination = AuthDestination.StudentEntry
+                                },
+                                onEditDraftEntry = { draftEntry ->
+                                    selectedNotebookId = draftEntry.notebookId
+                                    editingEntryId = draftEntry.id
+                                    destination = AuthDestination.StudentEntry
                                 },
                                 onNotebookPublished = { draft: NotebookDraft ->
                                     val teacher = currentAccount
@@ -164,14 +198,36 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onStudentEntrySaved = { draft: StudentEntryDraft, isDraft: Boolean ->
                                     val student = currentAccount
+                                    val existingDraft = editingEntry
                                     val notebook = selectedNotebook
-                                    val created = if (student != null && notebook != null) {
-                                        studentEntryRepository.create(draft, isDraft, student, notebook)
-                                    } else {
-                                        null
+                                    val savedEntry = when {
+                                        student != null && existingDraft != null ->
+                                            studentEntryRepository.updateDraft(existingDraft.id, draft, isDraft, student)
+                                        student != null && notebook != null ->
+                                            studentEntryRepository.create(draft, isDraft, student, notebook)
+                                        else -> null
                                     }
-                                    if (created != null) {
-                                        studentEntries = listOf(created) + studentEntries
+                                    if (savedEntry != null) {
+                                        studentEntries = if (existingDraft != null) {
+                                            studentEntries.map { if (it.id == savedEntry.id) savedEntry else it }
+                                        } else {
+                                            listOf(savedEntry) + studentEntries
+                                        }
+                                        editingEntryId = null
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                },
+                                onReviewEntry = { entryId: Long, feedback: String ->
+                                    val teacher = currentAccount
+                                    val updated = teacher?.let {
+                                        studentEntryRepository.markReviewed(entryId, it, feedback)
+                                    }
+                                    if (updated != null) {
+                                        teacherEntries = teacherEntries.map {
+                                            if (it.id == updated.id) updated else it
+                                        }
                                         true
                                     } else {
                                         false
@@ -179,8 +235,13 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onPhotoEdited = { bitmap: Bitmap ->
                                     currentAccount?.let { account ->
-                                        profilePhotoStorage.save(account.email, bitmap)?.let { savedUri ->
-                                            profilePhotoUri = savedUri
+                                        scope.launch {
+                                            val savedUri = withContext(Dispatchers.IO) {
+                                                profilePhotoStorage.save(account.email, bitmap)
+                                            }
+                                            if (savedUri != null) {
+                                                profilePhotoUri = savedUri
+                                            }
                                         }
                                     }
                                 },
@@ -188,6 +249,7 @@ class MainActivity : ComponentActivity() {
                                     authViewModel.clearSession()
                                     currentAccount = null
                                     selectedNotebookId = null
+                                    editingEntryId = null
                                     studentEntries = emptyList()
                                     teacherEntries = emptyList()
                                     profilePhotoUri = null

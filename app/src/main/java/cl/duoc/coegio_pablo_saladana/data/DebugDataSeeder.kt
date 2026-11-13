@@ -73,11 +73,11 @@ object DebugDataSeeder {
         } ?: notebooks.create(notebookDraft, teacher) ?: return
 
         val classDate = SimpleDateFormat("dd/MM/yyyy", Locale.ROOT).format(Date())
-        students.forEach { student ->
+        students.forEachIndexed { index, student ->
             val existingEntries = entries.findByStudent(student.email)
                 .filter { it.notebookId == notebook.id }
-            if (existingEntries.none { !it.isDraft && it.content == SUBMITTED_CONTENT }) {
-                entries.create(
+            val submitted = existingEntries.firstOrNull { !it.isDraft && it.content == SUBMITTED_CONTENT }
+                ?: entries.create(
                     StudentEntryDraft(
                         classDate = classDate,
                         content = SUBMITTED_CONTENT,
@@ -88,6 +88,12 @@ object DebugDataSeeder {
                     isDraft = false,
                     student = student,
                     notebook = notebook
+                )
+            if (index == 0 && submitted != null && !submitted.isReviewed) {
+                entries.markReviewed(
+                    submitted.id,
+                    teacher,
+                    "Excelente reflexión sobre las etapas del ciclo del agua."
                 )
             }
             if (existingEntries.none { it.isDraft && it.content == DRAFT_CONTENT }) {

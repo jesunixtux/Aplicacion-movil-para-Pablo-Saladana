@@ -13,8 +13,11 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 - Sesión activa persistente y restauración automática del dashboard correspondiente.
 - Fotos de perfil recortables, guardadas localmente en formato cuadrado de 64 × 64 píxeles.
 - Dashboard de estudiante con las bitácoras publicadas y detalle persistente.
-- Registros de clase enviados o guardados como borrador en SQLite, con historial persistente.
-- Dashboard docente con listado y creación persistente de bitácoras.
+- Registros de clase enviados o guardados como borrador en SQLite, con historial persistente y opción de editar/enviar borradores.
+- Dashboard docente con listado, creación persistente de bitácoras y sistema de revisión/retroalimentación de registros enviados.
+- Conexión con microservicio Spring Boot (`http://10.0.2.2:8080/api/notebooks`) con sincronización y respaldo local en Room.
+- Consumo de API externa de Feriados de Chile (`https://date.nager.at/api/v3/PublicHolidays/{year}/CL`) para el calendario escolar y validación contextual de fechas de clase.
+- Configuración de firma de APK release (`signingConfigs`) mediante `keystore.properties`.
 - Estados de carga, validaciones y mensajes de confirmación en las acciones principales.
 - Transiciones animadas entre pantallas, aparición escalonada de tarjetas y movimiento al filtrar listas.
 - Efecto elástico al llegar al inicio o final del contenido y aviso animado al terminar cada lista.
@@ -67,9 +70,9 @@ El APK de desarrollo se genera en:
 
 `app/build/outputs/apk/debug/app-debug.apk`
 
-## Backend Spring Boot (primer avance de Evaluación Parcial 4)
+## Backend Spring Boot y API Externa (Evaluación Parcial 4 / EFT)
 
-En `backend/` hay un servicio REST local para bitácoras. Requiere JDK 17 o superior y Maven Wrapper; la base H2 se crea automáticamente en `backend/data/` y no se versiona.
+En `backend/` hay un microservicio REST en Spring Boot para bitácoras. Requiere JDK 17 o superior y Maven Wrapper; la base H2 se crea automáticamente en `backend/data/` y no se versiona.
 
 ```bash
 cd backend
@@ -77,7 +80,31 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-El servidor escucha en `127.0.0.1:8080`. Endpoints: `GET /api/notebooks`, `GET /api/notebooks/{id}`, `POST /api/notebooks`, `PUT /api/notebooks/{id}` y `DELETE /api/notebooks/{id}`. Los cuerpos de escritura usan `title`, `purpose`, `instructions`, `questions` (opcional), `teacherEmail` y `teacherName`; los campos obligatorios se validan. Por ahora el servicio solo es de desarrollo local y no tiene autenticación. La aplicación Android sigue usando Room; aún falta conectarla al servicio, incorporar una API externa de educación, medir cobertura y preparar la firma del APK.
+El servidor escucha en `0.0.0.0:8080` (accesible desde el emulador Android en `http://10.0.2.2:8080/api/notebooks`). Endpoints: `GET /api/notebooks`, `GET /api/notebooks/{id}`, `POST /api/notebooks`, `PUT /api/notebooks/{id}` y `DELETE /api/notebooks/{id}`. Los cuerpos de escritura usan `title`, `purpose`, `instructions`, `questions` (opcional), `teacherEmail` y `teacherName`; los campos obligatorios se validan.
+
+- **Sincronización híbrida (Room + Spring Boot):** `NotebookRepository` sincroniza con `NotebookRemoteDataSource` al iniciar sesión y al publicar una bitácora, conservando copia local en SQLite (Room) para funcionar incluso si el servidor local no está encendido durante la defensa.
+- **Consumo de API externa:** `HolidayRemoteDataSource` consulta los feriados oficiales de Chile en `https://date.nager.at/api/v3/PublicHolidays/{year}/CL` (con respaldo local offline), mostrándolos en los paneles de docente/estudiante y avisando en el formulario cuando la fecha de clase coincide con un feriado.
+
+## Generación de APK firmado (Release)
+
+El módulo `app/build.gradle.kts` incluye la configuración `signingConfigs.release` que lee credenciales desde `keystore.properties` en la raíz del proyecto (ignorado por Git para no exponer claves privadas):
+
+1. Generar el keystore (una sola vez, fuera de control de versiones):
+   ```bash
+   keytool -genkeypair -v -keystore bitacora-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias bitacora
+   ```
+2. Crear el archivo `keystore.properties` en la raíz del repositorio:
+   ```properties
+   storeFile=bitacora-release.jks
+   storePassword=TU_PASSWORD
+   keyAlias=bitacora
+   keyPassword=TU_PASSWORD
+   ```
+3. Generar el APK firmado desde terminal o desde Android Studio (**Build → Generate Signed App Bundle / APK**):
+   ```bash
+   ./gradlew assembleRelease
+   ```
+   El APK se genera en `app/build/outputs/apk/release/`.
 
 ## Dónde están las validaciones
 
@@ -93,7 +120,7 @@ Para depurar un rechazo, revisa primero la regla en `validation/`, luego el mens
 
 SQLite está incluido en Android. El proyecto usa Room como capa de acceso tipado y verificable sobre SQLite. Las dependencias ya están declaradas en `gradle/libs.versions.toml` y el compilador de Room se ejecuta mediante KSP.
 
-La base de datos se crea automáticamente mediante `AppDatabase`. Contiene las tablas `users`, `notebooks` y `student_entries`, con sus DAO y repositorios. La versión 4 agrega los registros de clase mediante una migración que conserva las cuentas y bitácoras existentes. Cada registro guarda la bitácora, estudiante, fecha, contenido, actividad, aprendizaje, dudas y si está enviado o en borrador.
+La base de datos se crea automáticamente mediante `AppDatabase`. Contiene las tablas `users`, `notebooks` y `student_entries`, con sus DAO y repositorios. La versión 4 agrega los registros de clase y la versión 5 agrega el estado de revisión docente (`isReviewed`) y retroalimentación (`teacherFeedback`) mediante migraciones que conservan las cuentas y bitácoras existentes. Cada registro guarda la bitácora, estudiante, fecha, contenido, actividad, aprendizaje, dudas, si está enviado o en borrador, y la revisión del docente.
 
 Las contraseñas nuevas se almacenan con una sal única y PBKDF2. Se usa HMAC-SHA-256 cuando está disponible y HMAC-SHA-1 en Android 7 para mantener compatibilidad con la versión mínima. Las cuentas anteriores con hash SHA-256 siguen funcionando: el hash se actualiza al iniciar sesión correctamente. El hash no se expone en el modelo que usa la interfaz.
 

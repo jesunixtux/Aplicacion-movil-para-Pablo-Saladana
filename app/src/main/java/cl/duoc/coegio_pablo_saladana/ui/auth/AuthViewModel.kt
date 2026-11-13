@@ -1,6 +1,10 @@
-package cl.duoc.coegio_pablo_saladana.data
+package cl.duoc.coegio_pablo_saladana.ui.auth
 
 import androidx.lifecycle.ViewModel
+import cl.duoc.coegio_pablo_saladana.data.UserAccount
+import cl.duoc.coegio_pablo_saladana.data.UserGender
+import cl.duoc.coegio_pablo_saladana.data.UserRepository
+import cl.duoc.coegio_pablo_saladana.data.UserRole
 
 /** Expone las acciones de autenticación a Compose sin acoplar las pantallas a Room. */
 class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {

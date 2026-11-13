@@ -18,7 +18,9 @@ data class StudentEntryEntity(
     val learning: String,
     val doubts: String,
     val isDraft: Boolean,
-    val createdAt: Long
+    val createdAt: Long,
+    val isReviewed: Boolean = false,
+    val teacherFeedback: String = ""
 )
 
 /** Información editable de un registro antes de guardarlo como borrador o enviarlo. */
