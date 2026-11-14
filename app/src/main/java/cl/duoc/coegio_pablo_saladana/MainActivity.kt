@@ -1,16 +1,14 @@
 package cl.duoc.coegio_pablo_saladana
 
-import android.graphics.Bitmap
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.LocalOverscrollFactory
-import androidx.compose.foundation.rememberPlatformOverscrollFactory
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberPlatformOverscrollFactory
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -18,34 +16,22 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import cl.duoc.coegio_pablo_saladana.data.ChileanHoliday
-import cl.duoc.coegio_pablo_saladana.data.DebugDataSeeder
-import cl.duoc.coegio_pablo_saladana.data.HolidayRemoteDataSource
-import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
-import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
-import cl.duoc.coegio_pablo_saladana.data.NotebookRepository
-import cl.duoc.coegio_pablo_saladana.data.ProfilePhotoStorage
-import cl.duoc.coegio_pablo_saladana.data.StudentEntryDraft
-import cl.duoc.coegio_pablo_saladana.data.StudentEntryEntity
-import cl.duoc.coegio_pablo_saladana.data.StudentEntryRepository
-import cl.duoc.coegio_pablo_saladana.data.UserAccount
-import cl.duoc.coegio_pablo_saladana.data.UserRepository
-import cl.duoc.coegio_pablo_saladana.data.UserRole
-import cl.duoc.coegio_pablo_saladana.ui.auth.AuthDestination
+import androidx.lifecycle.ViewModelProvider
+import cl.duoc.coegio_pablo_saladana.data.local.ProfilePhotoStorage
+import cl.duoc.coegio_pablo_saladana.data.repository.NotebookRepository
+import cl.duoc.coegio_pablo_saladana.data.repository.StudentEntryRepository
+import cl.duoc.coegio_pablo_saladana.data.repository.UserRepository
+import cl.duoc.coegio_pablo_saladana.ui.AppViewModel
 import cl.duoc.coegio_pablo_saladana.ui.auth.AuthScreens
 import cl.duoc.coegio_pablo_saladana.ui.auth.AuthViewModel
+import cl.duoc.coegio_pablo_saladana.ui.navigation.AuthDestination
 import cl.duoc.coegio_pablo_saladana.ui.theme.CoegioPabloSaladanaTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-/** Coordina la sesión activa y la navegación principal de la aplicación. */
+/** Monta el contenedor Compose y delega el estado y la lógica de sesión a los ViewModel. */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,83 +42,56 @@ class MainActivity : ComponentActivity() {
         val studentEntryRepository = StudentEntryRepository(applicationContext)
         val profilePhotoStorage = ProfilePhotoStorage(applicationContext)
 
+        val authViewModel = ViewModelProvider(
+            this,
+            AuthViewModel.factory(userRepository)
+        )[AuthViewModel::class.java]
+
+        val appViewModel = ViewModelProvider(
+            this,
+            AppViewModel.factory(
+                appContext = applicationContext,
+                userRepository = userRepository,
+                notebookRepository = notebookRepository,
+                studentEntryRepository = studentEntryRepository,
+                profilePhotoStorage = profilePhotoStorage
+            )
+        )[AppViewModel::class.java]
+
         setContent {
             CoegioPabloSaladanaTheme {
                 val overscrollFactory = rememberPlatformOverscrollFactory(
                     glowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                 )
-                val authViewModel = remember { AuthViewModel(userRepository) }
-                val scope = rememberCoroutineScope()
-                var destination by rememberSaveable { mutableStateOf(AuthDestination.Welcome) }
-                var currentAccount by remember { mutableStateOf<UserAccount?>(null) }
-                var notebooks by remember { mutableStateOf<List<NotebookEntity>>(emptyList()) }
-                var selectedNotebookId by rememberSaveable { mutableStateOf<Long?>(null) }
-                val selectedNotebook = notebooks.firstOrNull { it.id == selectedNotebookId }
-                var editingEntryId by rememberSaveable { mutableStateOf<Long?>(null) }
-                var studentEntries by remember { mutableStateOf<List<StudentEntryEntity>>(emptyList()) }
-                val editingEntry = studentEntries.firstOrNull { it.id == editingEntryId }
-                var teacherEntries by remember { mutableStateOf<List<StudentEntryEntity>>(emptyList()) }
-                var holidays by remember { mutableStateOf<List<ChileanHoliday>>(emptyList()) }
-                var profilePhotoUri by remember { mutableStateOf<Uri?>(null) }
-                var isRestoringSession by remember { mutableStateOf(true) }
+                val state = appViewModel.uiState
+                var savedDestination by rememberSaveable { mutableStateOf(state.destination) }
+                var savedNotebookId by rememberSaveable { mutableStateOf(state.selectedNotebookId) }
+                var savedEditingEntryId by rememberSaveable { mutableStateOf(state.editingEntryId) }
 
                 LaunchedEffect(Unit) {
-                    if (BuildConfig.DEBUG) {
-                        DebugDataSeeder.seedIfNeeded(
-                            applicationContext,
-                            userRepository,
-                            notebookRepository,
-                            studentEntryRepository
-                        )
-                    }
-                    val restoredSession = authViewModel.restoreSession()
-                    notebooks = notebookRepository.findAll()
-                    studentEntries = restoredSession?.takeIf { it.role == UserRole.Student }
-                        ?.let { studentEntryRepository.findByStudent(it.email) }
-                        ?: emptyList()
-                    teacherEntries = restoredSession?.takeIf { it.role == UserRole.Teacher }
-                        ?.let { studentEntryRepository.findSubmittedByTeacher(it.email) }
-                        ?: emptyList()
-                    currentAccount = restoredSession
-                    profilePhotoUri = restoredSession?.let {
-                        withContext(Dispatchers.IO) { profilePhotoStorage.uriFor(it.email) }
-                    }
-                    destination = destinationForSession(
-                        if (savedInstanceState == null) null else destination,
-                        restoredSession?.role,
-                        notebooks.any { it.id == selectedNotebookId } ||
-                            studentEntries.any { it.id == editingEntryId }
+                    appViewModel.initialize(
+                        savedDestination = if (savedInstanceState == null) null else savedDestination,
+                        savedNotebookId = if (savedInstanceState == null) null else savedNotebookId,
+                        savedEditingEntryId = if (savedInstanceState == null) null else savedEditingEntryId
                     )
-                    isRestoringSession = false
-
-                    // Sincroniza microservicio Spring Boot y API externa en segundo plano sin bloquear el inicio.
-                    notebooks = notebookRepository.syncWithBackend()
-                    holidays = HolidayRemoteDataSource.fetchHolidays()
                 }
 
-                BackHandler(enabled = !isRestoringSession && destination != AuthDestination.Welcome) {
-                    destination = when (destination) {
-                        AuthDestination.Login, AuthDestination.Register -> AuthDestination.Welcome
-                        AuthDestination.StudentNotebook, AuthDestination.StudentHistory -> AuthDestination.StudentDashboard
-                        AuthDestination.StudentEntry -> if (editingEntry != null) {
-                            editingEntryId = null
-                            AuthDestination.StudentHistory
-                        } else {
-                            AuthDestination.StudentNotebook
-                        }
-                        AuthDestination.TeacherCreateNotebook -> AuthDestination.TeacherDashboard
-                        AuthDestination.Profile -> if (currentAccount?.role == cl.duoc.coegio_pablo_saladana.data.UserRole.Teacher) {
-                            AuthDestination.TeacherDashboard
-                        } else {
-                            AuthDestination.StudentDashboard
-                        }
-                        else -> AuthDestination.Welcome
+                LaunchedEffect(state.destination, state.selectedNotebookId, state.editingEntryId) {
+                    if (!state.isRestoringSession) {
+                        savedDestination = state.destination
+                        savedNotebookId = state.selectedNotebookId
+                        savedEditingEntryId = state.editingEntryId
                     }
                 }
+
+                BackHandler(
+                    enabled = !state.isRestoringSession && state.destination != AuthDestination.Welcome,
+                    onBack = appViewModel::handleBack
+                )
 
                 CompositionLocalProvider(LocalOverscrollFactory provides overscrollFactory) {
                     Surface(modifier = Modifier.fillMaxSize()) {
-                        if (isRestoringSession) {
+                        if (state.isRestoringSession) {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
@@ -141,146 +100,33 @@ class MainActivity : ComponentActivity() {
                             }
                         } else {
                             AuthScreens(
-                                destination = destination,
+                                destination = state.destination,
                                 authViewModel = authViewModel,
-                                currentAccount = currentAccount,
-                                notebooks = notebooks,
-                                selectedNotebook = selectedNotebook,
-                                editingEntry = editingEntry,
-                                studentEntries = studentEntries,
-                                teacherEntries = teacherEntries,
-                                holidays = holidays,
-                                profilePhotoUri = profilePhotoUri,
-                                onDestinationChange = { destination = it },
-                                onUserLoggedIn = {
-                                    currentAccount = it
-                                    authViewModel.saveSession(it)
-                                    scope.launch {
-                                        profilePhotoUri = withContext(Dispatchers.IO) {
-                                            profilePhotoStorage.uriFor(it.email)
-                                        }
-                                        notebooks = notebookRepository.syncWithBackend()
-                                        studentEntries = if (it.role == UserRole.Student) {
-                                            studentEntryRepository.findByStudent(it.email)
-                                        } else {
-                                            emptyList()
-                                        }
-                                        teacherEntries = if (it.role == UserRole.Teacher) {
-                                            studentEntryRepository.findSubmittedByTeacher(it.email)
-                                        } else {
-                                            emptyList()
-                                        }
-                                    }
-                                },
-                                onNotebookSelected = {
-                                    selectedNotebookId = it.id
-                                    editingEntryId = null
-                                    destination = AuthDestination.StudentNotebook
-                                },
-                                onStartNewEntry = {
-                                    editingEntryId = null
-                                    destination = AuthDestination.StudentEntry
-                                },
-                                onEditDraftEntry = { draftEntry ->
-                                    selectedNotebookId = draftEntry.notebookId
-                                    editingEntryId = draftEntry.id
-                                    destination = AuthDestination.StudentEntry
-                                },
-                                onNotebookPublished = { draft: NotebookDraft ->
-                                    val teacher = currentAccount
-                                    val created = teacher?.let { notebookRepository.create(draft, it) }
-                                    if (created != null) {
-                                        notebooks = listOf(created) + notebooks
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                },
-                                onStudentEntrySaved = { draft: StudentEntryDraft, isDraft: Boolean ->
-                                    val student = currentAccount
-                                    val existingDraft = editingEntry
-                                    val notebook = selectedNotebook
-                                    val savedEntry = when {
-                                        student != null && existingDraft != null ->
-                                            studentEntryRepository.updateDraft(existingDraft.id, draft, isDraft, student)
-                                        student != null && notebook != null ->
-                                            studentEntryRepository.create(draft, isDraft, student, notebook)
-                                        else -> null
-                                    }
-                                    if (savedEntry != null) {
-                                        studentEntries = if (existingDraft != null) {
-                                            studentEntries.map { if (it.id == savedEntry.id) savedEntry else it }
-                                        } else {
-                                            listOf(savedEntry) + studentEntries
-                                        }
-                                        editingEntryId = null
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                },
-                                onReviewEntry = { entryId: Long, feedback: String ->
-                                    val teacher = currentAccount
-                                    val updated = teacher?.let {
-                                        studentEntryRepository.markReviewed(entryId, it, feedback)
-                                    }
-                                    if (updated != null) {
-                                        teacherEntries = teacherEntries.map {
-                                            if (it.id == updated.id) updated else it
-                                        }
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                },
-                                onPhotoEdited = { bitmap: Bitmap ->
-                                    currentAccount?.let { account ->
-                                        scope.launch {
-                                            val savedUri = withContext(Dispatchers.IO) {
-                                                profilePhotoStorage.save(account.email, bitmap)
-                                            }
-                                            if (savedUri != null) {
-                                                profilePhotoUri = savedUri
-                                            }
-                                        }
-                                    }
-                                },
-                                onUserLoggedOut = {
-                                    authViewModel.clearSession()
-                                    currentAccount = null
-                                    selectedNotebookId = null
-                                    editingEntryId = null
-                                    studentEntries = emptyList()
-                                    teacherEntries = emptyList()
-                                    profilePhotoUri = null
-                                    destination = AuthDestination.Welcome
-                                }
+                                currentAccount = state.currentAccount,
+                                notebooks = state.notebooks,
+                                availableStudents = state.availableStudents,
+                                selectedNotebook = state.selectedNotebook,
+                                editingEntry = state.editingEntry,
+                                studentEntries = state.studentEntries,
+                                teacherEntries = state.teacherEntries,
+                                holidays = state.holidays,
+                                profilePhotoUri = state.profilePhotoUri,
+                                onDestinationChange = appViewModel::navigateTo,
+                                onUserLoggedIn = appViewModel::onUserLoggedIn,
+                                onNotebookSelected = appViewModel::onNotebookSelected,
+                                onStartNewEntry = appViewModel::onStartNewEntry,
+                                onEditDraftEntry = appViewModel::onEditDraftEntry,
+                                onNotebookPublished = appViewModel::publishNotebook,
+                                onUpdateNotebookAssignments = appViewModel::updateNotebookAssignments,
+                                onStudentEntrySaved = appViewModel::saveStudentEntry,
+                                onReviewEntry = appViewModel::reviewEntry,
+                                onPhotoEdited = appViewModel::updateProfilePhoto,
+                                onUserLoggedOut = appViewModel::logout
                             )
                         }
                     }
                 }
             }
         }
-    }
-}
-
-internal fun destinationForSession(
-    savedDestination: AuthDestination?,
-    role: UserRole?,
-    hasNotebook: Boolean
-): AuthDestination = when (role) {
-    null -> when (savedDestination) {
-        AuthDestination.Login, AuthDestination.Register -> savedDestination
-        else -> AuthDestination.Welcome
-    }
-    UserRole.Student -> when (savedDestination) {
-        AuthDestination.StudentDashboard, AuthDestination.StudentHistory, AuthDestination.Profile -> savedDestination
-        AuthDestination.StudentNotebook, AuthDestination.StudentEntry ->
-            if (hasNotebook) savedDestination else AuthDestination.StudentDashboard
-        else -> AuthDestination.StudentDashboard
-    }
-    UserRole.Teacher -> when (savedDestination) {
-        AuthDestination.TeacherDashboard, AuthDestination.TeacherCreateNotebook, AuthDestination.Profile -> savedDestination
-        else -> AuthDestination.TeacherDashboard
     }
 }

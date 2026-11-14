@@ -11,7 +11,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -30,15 +30,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cl.duoc.coegio_pablo_saladana.data.ChileanHoliday
-import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
-import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
-import cl.duoc.coegio_pablo_saladana.data.StudentEntryDraft
-import cl.duoc.coegio_pablo_saladana.data.StudentEntryEntity
-import cl.duoc.coegio_pablo_saladana.data.UserAccount
-import cl.duoc.coegio_pablo_saladana.data.UserGender
-import cl.duoc.coegio_pablo_saladana.data.UserRole
+import cl.duoc.coegio_pablo_saladana.data.local.NotebookEntity
+import cl.duoc.coegio_pablo_saladana.data.local.StudentEntryEntity
+import cl.duoc.coegio_pablo_saladana.domain.model.ChileanHoliday
+import cl.duoc.coegio_pablo_saladana.domain.model.NotebookDraft
+import cl.duoc.coegio_pablo_saladana.domain.model.SchoolCourses
+import cl.duoc.coegio_pablo_saladana.domain.model.StudentEntryDraft
+import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
+import cl.duoc.coegio_pablo_saladana.domain.model.UserGender
+import cl.duoc.coegio_pablo_saladana.domain.model.UserRole
 import cl.duoc.coegio_pablo_saladana.ui.components.AppMotionDefaults
+import cl.duoc.coegio_pablo_saladana.ui.navigation.AuthDestination
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileScreen
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentDashboard
 import cl.duoc.coegio_pablo_saladana.ui.student.StudentEntryForm
@@ -47,27 +49,14 @@ import cl.duoc.coegio_pablo_saladana.ui.student.StudentNotebookDetail
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherCreateNotebook
 import cl.duoc.coegio_pablo_saladana.ui.teacher.TeacherDashboard
 
-/** Destinos que puede mostrar el contenedor principal de Compose. */
-enum class AuthDestination {
-    Welcome,
-    Login,
-    Register,
-    StudentDashboard,
-    StudentNotebook,
-    StudentEntry,
-    StudentHistory,
-    TeacherDashboard,
-    TeacherCreateNotebook,
-    Profile
-}
-
-@Composable
 /** Enruta las pantallas según el estado de sesión y las acciones del usuario. */
+@Composable
 fun AuthScreens(
     destination: AuthDestination,
     authViewModel: AuthViewModel,
     currentAccount: UserAccount?,
     notebooks: List<NotebookEntity>,
+    availableStudents: List<UserAccount> = emptyList(),
     selectedNotebook: NotebookEntity?,
     editingEntry: StudentEntryEntity?,
     studentEntries: List<StudentEntryEntity>,
@@ -80,6 +69,7 @@ fun AuthScreens(
     onStartNewEntry: () -> Unit,
     onEditDraftEntry: (StudentEntryEntity) -> Unit,
     onNotebookPublished: suspend (NotebookDraft) -> Boolean,
+    onUpdateNotebookAssignments: suspend (Long, String, Set<String>) -> Boolean = { _, _, _ -> false },
     onStudentEntrySaved: suspend (StudentEntryDraft, Boolean) -> Boolean,
     onReviewEntry: suspend (Long, String) -> Boolean,
     onPhotoEdited: (Bitmap) -> Unit,
@@ -97,80 +87,85 @@ fun AuthScreens(
         },
         label = "auth_navigation"
     ) { currentDestination ->
-    when (currentDestination) {
-        AuthDestination.Welcome -> WelcomeScreen(onDestinationChange)
-        AuthDestination.Login -> LoginScreen(authViewModel, onDestinationChange, onUserLoggedIn)
-        AuthDestination.Register -> RegisterScreen(authViewModel, onDestinationChange, onUserLoggedIn)
-        AuthDestination.StudentDashboard -> StudentDashboard(
-            fullName = currentAccount?.fullName ?: "Estudiante",
-            rut = currentAccount?.rut ?: "RUT no disponible",
-            gender = currentAccount?.gender ?: UserGender.Other,
-            profilePhotoUri = profilePhotoUri,
-            notebooks = notebooks,
-            holidays = holidays,
-            onLogout = onUserLoggedOut,
-            onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
-            onOpenNotebook = onNotebookSelected,
-            onOpenHistory = { onDestinationChange(AuthDestination.StudentHistory) }
-        )
-        AuthDestination.StudentNotebook -> StudentNotebookDetail(
-            notebook = selectedNotebook,
-            onBack = { onDestinationChange(AuthDestination.StudentDashboard) },
-            onCreateEntry = onStartNewEntry
-        )
-        AuthDestination.StudentEntry -> StudentEntryForm(
-            initialEntry = editingEntry,
-            holidays = holidays,
-            onBack = {
-                onDestinationChange(
-                    if (editingEntry != null) AuthDestination.StudentHistory
-                    else AuthDestination.StudentNotebook
-                )
-            },
-            onSave = onStudentEntrySaved,
-            onSaved = { onDestinationChange(AuthDestination.StudentHistory) }
-        )
-        AuthDestination.StudentHistory -> StudentHistory(
-            entries = studentEntries,
-            onEditDraft = onEditDraftEntry,
-            onBack = { onDestinationChange(AuthDestination.StudentDashboard) }
-        )
-        AuthDestination.TeacherDashboard -> TeacherDashboard(
-            fullName = currentAccount?.fullName ?: "Docente",
-            rut = currentAccount?.rut ?: "RUT no disponible",
-            gender = currentAccount?.gender ?: UserGender.Other,
-            profilePhotoUri = profilePhotoUri,
-            notebooks = notebooks.filter { it.teacherEmail == currentAccount?.email },
-            submittedEntries = teacherEntries,
-            holidays = holidays,
-            onLogout = onUserLoggedOut,
-            onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
-            onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) },
-            onReviewEntry = onReviewEntry
-        )
-        AuthDestination.TeacherCreateNotebook -> TeacherCreateNotebook(
-            onBack = { onDestinationChange(AuthDestination.TeacherDashboard) },
-            onPublish = onNotebookPublished,
-            onPublished = { onDestinationChange(AuthDestination.TeacherDashboard) }
-        )
-        AuthDestination.Profile -> ProfileScreen(
-            fullName = currentAccount?.fullName ?: "Usuario",
-            rut = currentAccount?.rut ?: "RUT no disponible",
-            role = currentAccount?.role ?: UserRole.Student,
-            photoUri = profilePhotoUri,
-            onBack = {
-                onDestinationChange(
-                    if (currentAccount?.role == UserRole.Teacher) {
-                        AuthDestination.TeacherDashboard
-                    } else {
-                        AuthDestination.StudentDashboard
-                    }
-                )
-            },
-            onPhotoEdited = onPhotoEdited,
-            onLogout = onUserLoggedOut
-        )
-    }
+        when (currentDestination) {
+            AuthDestination.Welcome -> WelcomeScreen(onDestinationChange)
+            AuthDestination.Login -> LoginScreen(authViewModel, onDestinationChange, onUserLoggedIn)
+            AuthDestination.Register -> RegisterScreen(authViewModel, onDestinationChange, onUserLoggedIn)
+            AuthDestination.StudentDashboard -> StudentDashboard(
+                fullName = currentAccount?.fullName ?: "Estudiante",
+                rut = currentAccount?.rut ?: "RUT no disponible",
+                course = currentAccount?.course ?: SchoolCourses.DEFAULT_STUDENT_COURSE,
+                gender = currentAccount?.gender ?: UserGender.Other,
+                profilePhotoUri = profilePhotoUri,
+                notebooks = notebooks.filter { currentAccount == null || it.isAccessibleBy(currentAccount) },
+                holidays = holidays,
+                onLogout = onUserLoggedOut,
+                onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
+                onOpenNotebook = onNotebookSelected,
+                onOpenHistory = { onDestinationChange(AuthDestination.StudentHistory) }
+            )
+            AuthDestination.StudentNotebook -> StudentNotebookDetail(
+                notebook = selectedNotebook,
+                onBack = { onDestinationChange(AuthDestination.StudentDashboard) },
+                onCreateEntry = onStartNewEntry
+            )
+            AuthDestination.StudentEntry -> StudentEntryForm(
+                initialEntry = editingEntry,
+                holidays = holidays,
+                onBack = {
+                    onDestinationChange(
+                        if (editingEntry != null) AuthDestination.StudentHistory
+                        else AuthDestination.StudentNotebook
+                    )
+                },
+                onSave = onStudentEntrySaved,
+                onSaved = { onDestinationChange(AuthDestination.StudentHistory) }
+            )
+            AuthDestination.StudentHistory -> StudentHistory(
+                entries = studentEntries,
+                onEditDraft = onEditDraftEntry,
+                onBack = { onDestinationChange(AuthDestination.StudentDashboard) }
+            )
+            AuthDestination.TeacherDashboard -> TeacherDashboard(
+                fullName = currentAccount?.fullName ?: "Docente",
+                rut = currentAccount?.rut ?: "RUT no disponible",
+                gender = currentAccount?.gender ?: UserGender.Other,
+                profilePhotoUri = profilePhotoUri,
+                notebooks = notebooks.filter { it.teacherEmail == currentAccount?.email },
+                availableStudents = availableStudents,
+                submittedEntries = teacherEntries,
+                holidays = holidays,
+                onLogout = onUserLoggedOut,
+                onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
+                onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) },
+                onUpdateNotebookAssignments = onUpdateNotebookAssignments,
+                onReviewEntry = onReviewEntry
+            )
+            AuthDestination.TeacherCreateNotebook -> TeacherCreateNotebook(
+                availableStudents = availableStudents,
+                onBack = { onDestinationChange(AuthDestination.TeacherDashboard) },
+                onPublish = onNotebookPublished,
+                onPublished = { onDestinationChange(AuthDestination.TeacherDashboard) }
+            )
+            AuthDestination.Profile -> ProfileScreen(
+                fullName = currentAccount?.fullName ?: "Usuario",
+                rut = currentAccount?.rut ?: "RUT no disponible",
+                role = currentAccount?.role ?: UserRole.Student,
+                course = currentAccount?.course ?: SchoolCourses.DEFAULT_STUDENT_COURSE,
+                photoUri = profilePhotoUri,
+                onBack = {
+                    onDestinationChange(
+                        if (currentAccount?.role == UserRole.Teacher) {
+                            AuthDestination.TeacherDashboard
+                        } else {
+                            AuthDestination.StudentDashboard
+                        }
+                    )
+                },
+                onPhotoEdited = onPhotoEdited,
+                onLogout = onUserLoggedOut
+            )
+        }
     }
 }
 

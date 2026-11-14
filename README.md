@@ -1,6 +1,6 @@
 # Bitácora para docentes y estudiantes
 
-Aplicación móvil Android para registrar y revisar el aprendizaje de estudiantes de 5.º a 8.º básico mediante bitácoras mensuales por curso y asignatura.
+Aplicación móvil Android para registrar y revisar el aprendizaje de estudiantes de enseñanza media mediante bitácoras por curso.
 
 ## Estado actual
 
@@ -13,9 +13,9 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 - Sesión activa persistente y restauración automática del dashboard correspondiente.
 - Fotos de perfil recortables, guardadas localmente en formato cuadrado de 64 × 64 píxeles.
 - Dashboard de estudiante con las bitácoras publicadas y detalle persistente.
-- Registros de clase enviados o guardados como borrador en SQLite, con historial persistente y opción de editar/enviar borradores.
+- Registros de clase enviados o guardados como borrador en Spring Boot/MySQL, con copia local en Room, historial persistente y opción de editar/enviar borradores.
 - Dashboard docente con listado, creación persistente de bitácoras y sistema de revisión/retroalimentación de registros enviados.
-- Conexión con microservicio Spring Boot (`http://10.0.2.2:8080/api/notebooks`) con sincronización y respaldo local en Room.
+- Conexión con microservicio Spring Boot (`http://10.0.2.2:8080`) para bitácoras, registros y revisiones, con copia local en Room.
 - Consumo de API externa de Feriados de Chile (`https://date.nager.at/api/v3/PublicHolidays/{year}/CL`) para el calendario escolar y validación contextual de fechas de clase.
 - Configuración de firma de APK release (`signingConfigs`) mediante `keystore.properties`.
 - Estados de carga, validaciones y mensajes de confirmación en las acciones principales.
@@ -56,6 +56,9 @@ Ejecutar desde la raíz de este proyecto:
 # Ejecutar pruebas unitarias
 ./gradlew test
 
+# Generar informe de cobertura de pruebas unitarias
+./gradlew :app:createDebugUnitTestCoverageReport
+
 # Compilar la aplicación de desarrollo
 ./gradlew assembleDebug
 
@@ -70,20 +73,22 @@ El APK de desarrollo se genera en:
 
 `app/build/outputs/apk/debug/app-debug.apk`
 
+El informe de cobertura se genera en `app/build/reports/coverage/test/debug/index.html`.
+
 ## Backend Spring Boot y API Externa (Evaluación Parcial 4 / EFT)
 
-En `backend/` hay un microservicio REST en Spring Boot para bitácoras. Requiere JDK 17 o superior y Maven Wrapper; la base H2 se crea automáticamente en `backend/data/` y no se versiona.
+El backend usado por la app está en el repositorio hermano `GitHub/Backend-Aplicaciones-moviles-pablo-Salandra/pablo-salandra-backend`. Requiere JDK 21 y MySQL local. Desde esa carpeta:
 
 ```bash
-cd backend
-./mvnw test
-./mvnw spring-boot:run
+./MYSQL-Local/start-mysql.sh
+./gradlew test
+./gradlew bootRun
 ```
 
-El servidor escucha en `0.0.0.0:8080` (accesible desde el emulador Android en `http://10.0.2.2:8080/api/notebooks`). Endpoints: `GET /api/notebooks`, `GET /api/notebooks/{id}`, `POST /api/notebooks`, `PUT /api/notebooks/{id}` y `DELETE /api/notebooks/{id}`. Los cuerpos de escritura usan `title`, `purpose`, `instructions`, `questions` (opcional), `teacherEmail` y `teacherName`; los campos obligatorios se validan.
+El servidor escucha en `127.0.0.1:8080`, accesible desde el emulador Android en `http://10.0.2.2:8080`. La URL del cliente se cambia en `SchoolBackend.BASE_URL`, dentro de `data/remote/NotebookRemoteDataSource.kt`. La URL y credenciales de MySQL se cambian en `src/main/resources/application.properties` del backend. Inicia únicamente este servidor en el puerto 8080; `backend/` dentro de este repositorio es una implementación anterior con H2.
 
-- **Sincronización híbrida (Room + Spring Boot):** `NotebookRepository` sincroniza con `NotebookRemoteDataSource` al iniciar sesión y al publicar una bitácora, conservando copia local en SQLite (Room) para funcionar incluso si el servidor local no está encendido durante la defensa.
-- **Consumo de API externa:** `HolidayRemoteDataSource` consulta los feriados oficiales de Chile en `https://date.nager.at/api/v3/PublicHolidays/{year}/CL` (con respaldo local offline), mostrándolos en los paneles de docente/estudiante y avisando en el formulario cuando la fecha de clase coincide con un feriado.
+- **Sincronización (Room + Spring Boot):** los repositorios actualizan las copias locales al iniciar sesión. Publicar bitácoras, asignar estudiantes, guardar registros y revisar entregas requiere que Spring Boot y MySQL estén encendidos. Si no hay conexión, se pueden consultar los datos ya sincronizados.
+- **Consumo de API externa con Retrofit:** `HolidayRemoteDataSource` consulta los feriados de Chile en `https://date.nager.at/api/v3/PublicHolidays/{year}/CL` (con respaldo local offline), mostrándolos en los paneles de docente/estudiante y avisando en el formulario cuando la fecha de clase coincide con un feriado.
 
 ## Generación de APK firmado (Release)
 
@@ -108,19 +113,19 @@ El módulo `app/build.gradle.kts` incluye la configuración `signingConfigs.rele
 
 ## Dónde están las validaciones
 
-- `app/src/main/java/cl/duoc/coegio_pablo_saladana/validation/`: reglas de correo, nombre, RUT, contraseña, bitácoras y registros de clase; los validadores de formularios devuelven errores por campo.
+- `app/src/main/java/cl/duoc/coegio_pablo_saladana/domain/validation/`: reglas de correo, nombre, RUT, contraseña, bitácoras y registros de clase; los validadores de formularios devuelven errores por campo.
 - `ui/auth/AuthScreens.kt`: selecciona la vista; `LoginScreen.kt` y `RegisterScreen.kt` contienen cada formulario por separado.
-- `ui/`: recoge los datos y muestra los errores junto a los campos.
-- `data/`: contiene los borradores, normaliza los datos y vuelve a validarlos en los repositorios antes de guardarlos.
+- `ui/`: recoge los datos mediante `UiState` y `ViewModel`, y muestra los errores junto a los campos.
+- `data/repository/`: normaliza los datos y vuelve a validarlos en los repositorios antes de guardarlos.
 - `app/src/test/`: prueba los casos válidos e inválidos de las reglas.
 
-Para depurar un rechazo, revisa primero la regla en `validation/`, luego el mensaje en la pantalla y finalmente la llamada desde el repositorio.
+Para depurar un rechazo, revisa primero la regla en `domain/validation/`, luego el mensaje en la pantalla y finalmente la llamada desde el repositorio.
 
 ## SQLite y Room
 
 SQLite está incluido en Android. El proyecto usa Room como capa de acceso tipado y verificable sobre SQLite. Las dependencias ya están declaradas en `gradle/libs.versions.toml` y el compilador de Room se ejecuta mediante KSP.
 
-La base de datos se crea automáticamente mediante `AppDatabase`. Contiene las tablas `users`, `notebooks` y `student_entries`, con sus DAO y repositorios. La versión 4 agrega los registros de clase y la versión 5 agrega el estado de revisión docente (`isReviewed`) y retroalimentación (`teacherFeedback`) mediante migraciones que conservan las cuentas y bitácoras existentes. Cada registro guarda la bitácora, estudiante, fecha, contenido, actividad, aprendizaje, dudas, si está enviado o en borrador, y la revisión del docente.
+La base de datos se crea automáticamente mediante `AppDatabase`. Contiene las tablas `users`, `notebooks` y `student_entries`, con sus DAO y repositorios. Incluye sistema de cursos y asignación directa de estudiantes a bitácoras, además del estado de revisión docente (`isReviewed`) y retroalimentación (`teacherFeedback`). Cada registro guarda la bitácora, estudiante, fecha, contenido, actividad, aprendizaje, dudas, si está enviado o en borrador, y la revisión del docente.
 
 Las contraseñas nuevas se almacenan con una sal única y PBKDF2. Se usa HMAC-SHA-256 cuando está disponible y HMAC-SHA-1 en Android 7 para mantener compatibilidad con la versión mínima. Las cuentas anteriores con hash SHA-256 siguen funcionando: el hash se actualiza al iniciar sesión correctamente. El hash no se expone en el modelo que usa la interfaz.
 
@@ -139,7 +144,7 @@ Los valores visuales se pueden cambiar en `ProfilePhotoDefaults`, dentro de `ui/
 - `EditorMaxImagePixels`: resolución máxima usada por el editor.
 - `MaxZoom`: ampliación máxima del recorte.
 
-La resolución del archivo final se cambia mediante `PHOTO_SIZE_PIXELS` en `data/ProfilePhotoStorage.kt`.
+La resolución del archivo final se cambia mediante `PHOTO_SIZE_PIXELS` en `data/local/ProfilePhotoStorage.kt`.
 
 ## Animaciones y desplazamiento
 
@@ -155,11 +160,9 @@ Los tiempos y escalas generales están centralizados en `AppMotionDefaults`, den
 
 El estiramiento usa el efecto de desplazamiento de la plataforma configurado en `MainActivity.kt`. En versiones compatibles de Android se muestra como estiramiento; en versiones anteriores se mantiene el efecto visual propio del sistema.
 
-## Datos de prueba
+## Entorno limpio para pruebas
 
-Usar únicamente datos ficticios. No ingresar RUT, nombres, correos, fotografías ni credenciales reales de estudiantes o docentes.
-
-Las cuentas de prueba deben crearse manualmente desde **Registrarse** y pueden eliminarse borrando los datos de la aplicación o desinstalándola del emulador. Para limpiar los datos del emulador:
+La aplicación inicia sin usuarios ni bitácoras precargadas. Todas las cuentas deben crearse manualmente desde **Registrarse** usando datos ficticios (no ingresar RUT, nombres, correos, fotografías ni credenciales reales). Para limpiar por completo los datos locales del emulador:
 
 ```bash
 adb shell pm clear cl.duoc.coegio_pablo_saladana

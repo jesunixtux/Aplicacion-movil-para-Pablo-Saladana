@@ -1,6 +1,6 @@
 package cl.duoc.coegio_pablo_saladana.ui.components
 
-import cl.duoc.coegio_pablo_saladana.data.UserGender
+import cl.duoc.coegio_pablo_saladana.domain.model.UserGender
 
 /** Saludo personalizado según el género elegido en el registro. */
 fun greetingFor(fullName: String, gender: UserGender): String {

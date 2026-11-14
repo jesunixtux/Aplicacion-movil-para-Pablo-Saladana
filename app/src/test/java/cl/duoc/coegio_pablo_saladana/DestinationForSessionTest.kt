@@ -1,7 +1,8 @@
 package cl.duoc.coegio_pablo_saladana
 
-import cl.duoc.coegio_pablo_saladana.data.UserRole
-import cl.duoc.coegio_pablo_saladana.ui.auth.AuthDestination
+import cl.duoc.coegio_pablo_saladana.domain.model.UserRole
+import cl.duoc.coegio_pablo_saladana.ui.navigation.AuthDestination
+import cl.duoc.coegio_pablo_saladana.ui.navigation.destinationForSession
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

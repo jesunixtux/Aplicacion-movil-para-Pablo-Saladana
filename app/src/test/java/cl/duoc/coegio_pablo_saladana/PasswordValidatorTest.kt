@@ -1,6 +1,6 @@
 package cl.duoc.coegio_pablo_saladana
 
-import cl.duoc.coegio_pablo_saladana.validation.PasswordValidator
+import cl.duoc.coegio_pablo_saladana.domain.validation.PasswordValidator
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

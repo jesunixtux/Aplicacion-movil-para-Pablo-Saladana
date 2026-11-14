@@ -1,50 +1,202 @@
 package cl.duoc.coegio_pablo_saladana.ui.auth
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
-import cl.duoc.coegio_pablo_saladana.data.UserAccount
-import cl.duoc.coegio_pablo_saladana.data.UserGender
-import cl.duoc.coegio_pablo_saladana.data.UserRepository
-import cl.duoc.coegio_pablo_saladana.data.UserRole
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import cl.duoc.coegio_pablo_saladana.data.repository.UserRepository
+import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
+import cl.duoc.coegio_pablo_saladana.domain.model.UserGender
+import cl.duoc.coegio_pablo_saladana.domain.model.UserRole
+import cl.duoc.coegio_pablo_saladana.domain.validation.AuthFormValidator
+import cl.duoc.coegio_pablo_saladana.domain.validation.PersonNameValidator
+import cl.duoc.coegio_pablo_saladana.domain.validation.RutValidator
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-/** Expone las acciones de autenticación a Compose sin acoplar las pantallas a Room. */
+/** Gestiona el estado de los formularios de autenticación y coordina el acceso con UserRepository. */
 class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
-    suspend fun login(email: String, password: String): UserAccount? {
-        return userRepository.login(email, password)
-    }
 
-    suspend fun restoreSession(): UserAccount? {
-        return userRepository.getActiveSession()
-    }
+    var loginUiState by mutableStateOf(LoginUiState())
+        private set
 
-    fun saveSession(account: UserAccount) {
-        userRepository.saveSession(account)
-    }
+    var registerUiState by mutableStateOf(RegisterUiState())
+        private set
 
-    fun clearSession() {
-        userRepository.clearSession()
-    }
-
-    suspend fun register(
-        firstName: String,
-        middleName: String,
-        paternalSurname: String,
-        maternalSurname: String,
-        rut: String,
-        email: String,
-        password: String,
-        role: UserRole,
-        gender: UserGender
-    ): UserAccount? {
-        return userRepository.register(
-            firstName,
-            middleName,
-            paternalSurname,
-            maternalSurname,
-            rut,
-            email,
-            password,
-            role,
-            gender
+    fun onLoginEmailChange(email: String) {
+        loginUiState = loginUiState.copy(
+            email = email,
+            message = null,
+            isError = false,
+            errors = AuthFormValidator.login(email, loginUiState.password)
         )
+    }
+
+    fun onLoginPasswordChange(password: String) {
+        loginUiState = loginUiState.copy(
+            password = password,
+            message = null,
+            isError = false,
+            errors = AuthFormValidator.login(loginUiState.email, password)
+        )
+    }
+
+    fun toggleLoginPasswordVisibility() {
+        loginUiState = loginUiState.copy(passwordVisible = !loginUiState.passwordVisible)
+    }
+
+    fun submitLogin(onSuccess: (UserAccount) -> Unit) {
+        val errors = AuthFormValidator.login(loginUiState.email, loginUiState.password)
+        loginUiState = loginUiState.copy(attemptedSubmit = true, errors = errors)
+        if (!errors.isValid) {
+            loginUiState = loginUiState.copy(
+                isError = true,
+                message = "Revisa los campos marcados."
+            )
+            return
+        }
+        viewModelScope.launch {
+            loginUiState = loginUiState.copy(isLoading = true)
+            delay(500)
+            val account = userRepository.login(loginUiState.email, loginUiState.password)
+            if (account == null) {
+                loginUiState = loginUiState.copy(
+                    isLoading = false,
+                    isError = true,
+                    message = "El correo o la contraseña no son correctos."
+                )
+            } else {
+                loginUiState = LoginUiState()
+                onSuccess(account)
+            }
+        }
+    }
+
+    fun onFirstNameChange(value: String) {
+        updateRegisterState(registerUiState.copy(firstName = PersonNameValidator.sanitize(value), message = null))
+    }
+
+    fun onMiddleNameChange(value: String) {
+        updateRegisterState(registerUiState.copy(middleName = PersonNameValidator.sanitize(value), message = null))
+    }
+
+    fun onPaternalSurnameChange(value: String) {
+        updateRegisterState(registerUiState.copy(paternalSurname = PersonNameValidator.sanitize(value), message = null))
+    }
+
+    fun onMaternalSurnameChange(value: String) {
+        updateRegisterState(registerUiState.copy(maternalSurname = PersonNameValidator.sanitize(value), message = null))
+    }
+
+    fun onRutChange(value: TextFieldValue) {
+        val formattedRut = RutValidator.format(value.text)
+        val cursor = RutValidator.formattedCursorPosition(value.text, value.selection.end)
+        updateRegisterState(
+            registerUiState.copy(
+                rut = TextFieldValue(formattedRut, TextRange(cursor)),
+                message = null
+            )
+        )
+    }
+
+    fun onRegisterEmailChange(value: String) {
+        updateRegisterState(registerUiState.copy(email = value, message = null))
+    }
+
+    fun onRegisterPasswordChange(value: String) {
+        updateRegisterState(registerUiState.copy(password = value, message = null))
+    }
+
+    fun onConfirmPasswordChange(value: String) {
+        updateRegisterState(registerUiState.copy(confirmPassword = value, message = null))
+    }
+
+    fun toggleRegisterPasswordVisibility() {
+        registerUiState = registerUiState.copy(passwordVisible = !registerUiState.passwordVisible)
+    }
+
+    fun toggleConfirmPasswordVisibility() {
+        registerUiState = registerUiState.copy(confirmPasswordVisible = !registerUiState.confirmPasswordVisible)
+    }
+
+    fun onRoleSelected(role: UserRole) {
+        registerUiState = registerUiState.copy(selectedRole = role)
+    }
+
+    fun onGenderSelected(gender: UserGender) {
+        registerUiState = registerUiState.copy(selectedGender = gender)
+    }
+
+    fun onCourseSelected(course: String) {
+        registerUiState = registerUiState.copy(selectedCourse = course)
+    }
+
+    fun submitRegister(onSuccess: (UserAccount) -> Unit) {
+        val state = registerUiState
+        val errors = validateRegister(state)
+        registerUiState = state.copy(attemptedSubmit = true, errors = errors)
+        if (!errors.isValid) {
+            registerUiState = registerUiState.copy(
+                isError = true,
+                message = "Revisa los campos marcados."
+            )
+            return
+        }
+        viewModelScope.launch {
+            registerUiState = registerUiState.copy(isLoading = true)
+            delay(500)
+            val account = userRepository.register(
+                firstName = state.firstName,
+                middleName = state.middleName,
+                paternalSurname = state.paternalSurname,
+                maternalSurname = state.maternalSurname,
+                rut = state.rut.text,
+                email = state.email,
+                password = state.password,
+                role = state.selectedRole,
+                gender = state.selectedGender,
+                course = state.selectedCourse
+            )
+            if (account != null) {
+                registerUiState = RegisterUiState()
+                onSuccess(account)
+            } else {
+                registerUiState = registerUiState.copy(
+                    isLoading = false,
+                    isError = true,
+                    message = "Ya existe una cuenta con ese correo o RUT."
+                )
+            }
+        }
+    }
+
+    private fun updateRegisterState(next: RegisterUiState) {
+        registerUiState = next.copy(errors = validateRegister(next))
+    }
+
+    private fun validateRegister(state: RegisterUiState): AuthFormValidator.RegisterErrors =
+        AuthFormValidator.register(
+            state.firstName,
+            state.middleName,
+            state.paternalSurname,
+            state.maternalSurname,
+            state.rut.text,
+            state.email,
+            state.password,
+            state.confirmPassword
+        )
+
+    companion object {
+        fun factory(userRepository: UserRepository): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return AuthViewModel(userRepository) as T
+                }
+            }
     }
 }

@@ -3,8 +3,8 @@ package cl.duoc.coegio_pablo_saladana
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import cl.duoc.coegio_pablo_saladana.data.AppDatabase
-import cl.duoc.coegio_pablo_saladana.data.UserEntity
+import cl.duoc.coegio_pablo_saladana.data.local.AppDatabase
+import cl.duoc.coegio_pablo_saladana.data.local.UserEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

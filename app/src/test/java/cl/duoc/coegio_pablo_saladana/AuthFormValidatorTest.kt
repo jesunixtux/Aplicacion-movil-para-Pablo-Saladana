@@ -1,6 +1,6 @@
 package cl.duoc.coegio_pablo_saladana
 
-import cl.duoc.coegio_pablo_saladana.validation.AuthFormValidator
+import cl.duoc.coegio_pablo_saladana.domain.validation.AuthFormValidator
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

@@ -3,7 +3,7 @@ package cl.duoc.coegio_pablo_saladana
 import android.graphics.Bitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import cl.duoc.coegio_pablo_saladana.data.ProfilePhotoStorage
+import cl.duoc.coegio_pablo_saladana.data.local.ProfilePhotoStorage
 import java.io.File
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull

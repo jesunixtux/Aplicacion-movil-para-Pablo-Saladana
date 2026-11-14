@@ -2,14 +2,14 @@ package cl.duoc.coegio_pablo_saladana
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import cl.duoc.coegio_pablo_saladana.data.NotebookDraft
-import cl.duoc.coegio_pablo_saladana.data.NotebookEntity
-import cl.duoc.coegio_pablo_saladana.data.NotebookRepository
-import cl.duoc.coegio_pablo_saladana.data.StudentEntryDraft
-import cl.duoc.coegio_pablo_saladana.data.StudentEntryRepository
-import cl.duoc.coegio_pablo_saladana.data.UserAccount
-import cl.duoc.coegio_pablo_saladana.data.UserGender
-import cl.duoc.coegio_pablo_saladana.data.UserRole
+import cl.duoc.coegio_pablo_saladana.data.local.NotebookEntity
+import cl.duoc.coegio_pablo_saladana.data.repository.NotebookRepository
+import cl.duoc.coegio_pablo_saladana.data.repository.StudentEntryRepository
+import cl.duoc.coegio_pablo_saladana.domain.model.NotebookDraft
+import cl.duoc.coegio_pablo_saladana.domain.model.StudentEntryDraft
+import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
+import cl.duoc.coegio_pablo_saladana.domain.model.UserGender
+import cl.duoc.coegio_pablo_saladana.domain.model.UserRole
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

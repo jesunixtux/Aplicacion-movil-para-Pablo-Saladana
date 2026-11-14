@@ -1,7 +1,7 @@
 package cl.duoc.coegio_pablo_saladana
 
-import cl.duoc.coegio_pablo_saladana.data.StudentEntryDraft
-import cl.duoc.coegio_pablo_saladana.validation.StudentEntryValidator
+import cl.duoc.coegio_pablo_saladana.domain.model.StudentEntryDraft
+import cl.duoc.coegio_pablo_saladana.domain.validation.StudentEntryValidator
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

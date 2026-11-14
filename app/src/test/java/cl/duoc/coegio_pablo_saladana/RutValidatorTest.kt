@@ -1,6 +1,6 @@
 package cl.duoc.coegio_pablo_saladana
 
-import cl.duoc.coegio_pablo_saladana.validation.RutValidator
+import cl.duoc.coegio_pablo_saladana.domain.validation.RutValidator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

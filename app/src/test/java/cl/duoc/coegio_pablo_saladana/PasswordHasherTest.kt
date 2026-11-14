@@ -1,6 +1,6 @@
 package cl.duoc.coegio_pablo_saladana
 
-import cl.duoc.coegio_pablo_saladana.data.PasswordHasher
+import cl.duoc.coegio_pablo_saladana.data.local.PasswordHasher
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import org.junit.Assert.assertFalse

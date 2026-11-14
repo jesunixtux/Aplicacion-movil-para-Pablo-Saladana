@@ -1,0 +1,212 @@
+package cl.duoc.coegio_pablo_saladana.ui.teacher
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStoreOwner
+import cl.duoc.coegio_pablo_saladana.domain.model.NotebookDraft
+import cl.duoc.coegio_pablo_saladana.domain.model.SchoolCourses
+import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
+import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
+
+/** Formulario para crear y publicar una bitácora mensual, asignando curso y estudiantes. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TeacherCreateNotebook(
+    availableStudents: List<UserAccount> = emptyList(),
+    onBack: () -> Unit,
+    onPublish: suspend (NotebookDraft) -> Boolean,
+    onPublished: () -> Unit
+) {
+    val context = LocalContext.current
+    val viewModel = remember(context) {
+        (context as? ViewModelStoreOwner)?.let {
+            ViewModelProvider(it)[TeacherNotebookViewModel::class.java]
+        } ?: TeacherNotebookViewModel()
+    }
+    val state = viewModel.uiState
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Nueva bitácora") },
+                navigationIcon = { TextButton(onClick = onBack) { Text("Atrás") } }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item { Text("Configura la bitácora mensual", style = MaterialTheme.typography.headlineSmall) }
+            item {
+                OutlinedTextField(
+                    value = state.title,
+                    onValueChange = viewModel::onTitleChange,
+                    label = { Text("Título") },
+                    isError = state.attemptedPublish && state.errors.title,
+                    supportingText = {
+                        if (state.attemptedPublish && state.errors.title) Text("Ingresa un título.")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = state.purpose,
+                    onValueChange = viewModel::onPurposeChange,
+                    label = { Text("Propósito") },
+                    minLines = 3,
+                    isError = state.attemptedPublish && state.errors.purpose,
+                    supportingText = {
+                        if (state.attemptedPublish && state.errors.purpose) Text("Ingresa el propósito.")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = state.instructions,
+                    onValueChange = viewModel::onInstructionsChange,
+                    label = { Text("Instrucciones") },
+                    minLines = 3,
+                    isError = state.attemptedPublish && state.errors.instructions,
+                    supportingText = {
+                        if (state.attemptedPublish && state.errors.instructions) Text("Ingresa las instrucciones.")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = state.questions,
+                    onValueChange = viewModel::onQuestionsChange,
+                    label = { Text("Preguntas orientadoras") },
+                    minLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Curso de la bitácora", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = "Selecciona el curso o usa asignación personalizada.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        SchoolCourses.NOTEBOOK_COURSES.forEach { courseName ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = state.course == courseName,
+                                    onClick = { viewModel.onCourseChange(courseName) }
+                                )
+                                Text(courseName, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
+            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Agregar estudiantes a la bitácora", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = "Puedes dar acceso directo a cualquier usuario estudiante registrado.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (availableStudents.isEmpty()) {
+                            Text(
+                                text = "Aún no hay usuarios estudiantes registrados.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        } else {
+                            availableStudents.forEach { student ->
+                                val isChecked = student.email.trim().lowercase() in state.assignedStudentEmails
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = isChecked,
+                                        onCheckedChange = { viewModel.onToggleStudent(student.email) }
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(student.fullName, style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            text = "${student.course} · ${student.email}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            item {
+                state.message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Button(
+                    onClick = { viewModel.publish(onPublish = onPublish, onPublished = onPublished) },
+                    enabled = !state.loading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (state.loading) CircularProgressIndicator() else {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Publicar bitácora")
+                    }
+                }
+            }
+            item { EndOfContent("Fin del formulario") }
+        }
+    }
+}

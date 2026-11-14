@@ -2,9 +2,9 @@ package cl.duoc.coegio_pablo_saladana
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import cl.duoc.coegio_pablo_saladana.data.UserGender
-import cl.duoc.coegio_pablo_saladana.data.UserRepository
-import cl.duoc.coegio_pablo_saladana.data.UserRole
+import cl.duoc.coegio_pablo_saladana.data.repository.UserRepository
+import cl.duoc.coegio_pablo_saladana.domain.model.UserGender
+import cl.duoc.coegio_pablo_saladana.domain.model.UserRole
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNull
 import org.junit.Test
