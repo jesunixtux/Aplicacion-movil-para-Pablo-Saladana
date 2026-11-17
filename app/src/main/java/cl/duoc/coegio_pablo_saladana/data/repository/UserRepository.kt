@@ -92,6 +92,20 @@ class UserRepository(context: Context) {
         return userDao.findAllStudents().map { it.toUserAccount() }
     }
 
+    suspend fun findAllStudentsByCourse(course: String): List<UserAccount> {
+        return userDao.findAllStudents().filter { it.course == course }.map { it.toUserAccount() }
+    }
+
+    suspend fun isCourseAvailable(course: String): Boolean {
+        return userDao.findTeacherByAssignedCourse(course) == null
+    }
+
+    suspend fun assignCourseToTeacher(teacherEmail: String, course: String): Boolean {
+        if (!isCourseAvailable(course)) return false
+        val updated = userDao.updateAssignedCourse(teacherEmail, course)
+        return updated > 0
+    }
+
     fun saveSession(account: UserAccount) {
         preferences.edit()
             .putString(ACTIVE_SESSION_KEY, account.email)
@@ -121,7 +135,8 @@ class UserRepository(context: Context) {
             email = email,
             role = UserRole.valueOf(role),
             gender = runCatching { UserGender.valueOf(gender) }.getOrDefault(UserGender.Other),
-            course = course.ifBlank { SchoolCourses.DEFAULT_STUDENT_COURSE }
+            course = course.ifBlank { SchoolCourses.DEFAULT_STUDENT_COURSE },
+            assignedCourse = assignedCourse
         )
     }
 

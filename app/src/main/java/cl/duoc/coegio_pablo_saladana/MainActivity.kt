@@ -117,6 +117,7 @@ class MainActivity : ComponentActivity() {
                                 onStartNewEntry = appViewModel::onStartNewEntry,
                                 onEditDraftEntry = appViewModel::onEditDraftEntry,
                                 onNotebookPublished = appViewModel::publishNotebook,
+                                onAssignCourse = appViewModel::assignCourse,
                                 onUpdateNotebookAssignments = appViewModel::updateNotebookAssignments,
                                 onStudentEntrySaved = appViewModel::saveStudentEntry,
                                 onReviewEntry = appViewModel::reviewEntry,

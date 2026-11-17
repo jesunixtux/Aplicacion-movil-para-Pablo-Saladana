@@ -16,21 +16,25 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,6 +49,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cl.duoc.coegio_pablo_saladana.data.local.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.data.local.StudentEntryEntity
@@ -67,6 +73,8 @@ fun TeacherDashboard(
     rut: String,
     gender: UserGender,
     profilePhotoUri: Uri?,
+    assignedCourse: String?,
+    availableCourses: List<String>,
     notebooks: List<NotebookEntity>,
     availableStudents: List<UserAccount> = emptyList(),
     submittedEntries: List<StudentEntryEntity>,
@@ -74,6 +82,7 @@ fun TeacherDashboard(
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
     onCreateNotebook: () -> Unit,
+    onAssignCourse: suspend (String) -> Boolean,
     onUpdateNotebookAssignments: suspend (Long, String, Set<String>) -> Boolean = { _, _, _ -> false },
     onReviewEntry: suspend (Long, String) -> Boolean
 ) {
@@ -82,6 +91,7 @@ fun TeacherDashboard(
     val nextHoliday = holidays.firstOrNull()
     var managingNotebookId by rememberSaveable { mutableStateOf<Long?>(null) }
     val managingNotebook = notebooks.firstOrNull { it.id == managingNotebookId }
+    var showTakeCourseDialog by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -144,8 +154,98 @@ fun TeacherDashboard(
                     }
                 }
             }
+
+            if (assignedCourse == null) {
+                item {
+                    AnimatedListItem(1) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.School,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Text(
+                                    text = "Aún no tienes un curso asignado",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Toma un curso para comenzar a gestionar estudiantes y crear bitácoras.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Button(
+                                    onClick = { showTakeCourseDialog = true },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Tomar curso")
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    AnimatedListItem(1) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Book,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = "Curso asignado: $assignedCourse",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                                Text(
+                                    text = "Puedes gestionar estudiantes y crear bitácoras para este curso.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             item {
-                AnimatedListItem(1) {
+                AnimatedListItem(2) {
                     MetricCard(
                         "${notebooks.size} bitácoras · $reviewedCount/${submittedEntries.size} revisados",
                         "Resumen de seguimiento docente",
@@ -155,7 +255,7 @@ fun TeacherDashboard(
             }
             if (nextHoliday != null) {
                 item {
-                    AnimatedListItem(2) {
+                    AnimatedListItem(3) {
                         HolidayBannerCard(
                             holiday = nextHoliday,
                             title = "Calendario escolar (API Feriados Chile)"
@@ -165,7 +265,7 @@ fun TeacherDashboard(
             }
             itemsIndexed(notebooks, key = { _, notebook -> "notebook-${notebook.id}" }) { index, notebook ->
                 val assignedCount = notebook.assignedStudentsSet.size
-                AnimatedListItem(index + 3, Modifier.animateItem()) {
+                AnimatedListItem(index + 4, Modifier.animateItem()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large,
@@ -247,7 +347,7 @@ fun TeacherDashboard(
                 var feedbackText by rememberSaveable(entry.id) { mutableStateOf(entry.teacherFeedback) }
                 var isSavingReview by remember(entry.id) { mutableStateOf(false) }
 
-                AnimatedListItem(index + notebooks.size + 4, Modifier.animateItem()) {
+                AnimatedListItem(index + notebooks.size + 5, Modifier.animateItem()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.large,
@@ -324,14 +424,16 @@ fun TeacherDashboard(
                     }
                 }
             }
-            item {
-                AnimatedListItem(notebooks.size + 3) {
-                    Button(
-                        onClick = onCreateNotebook,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Crear nueva bitácora")
+            if (assignedCourse != null) {
+                item {
+                    AnimatedListItem(notebooks.size + 4) {
+                        Button(
+                            onClick = onCreateNotebook,
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Crear nueva bitácora")
+                        }
                     }
                 }
             }
@@ -342,7 +444,12 @@ fun TeacherDashboard(
     if (managingNotebook != null) {
         AssignStudentsDialog(
             notebook = managingNotebook,
-            availableStudents = availableStudents,
+            availableStudents = if (assignedCourse != null) {
+                availableStudents.filter { it.course == assignedCourse }
+            } else {
+                availableStudents
+            },
+            teacherCourse = assignedCourse,
             onDismiss = { managingNotebookId = null },
             onSave = { selectedCourse, selectedStudentEmails ->
                 scope.launch {
@@ -356,20 +463,104 @@ fun TeacherDashboard(
             }
         )
     }
+
+    if (showTakeCourseDialog) {
+        TakeCourseDialog(
+            availableCourses = availableCourses,
+            onDismiss = { showTakeCourseDialog = false },
+            onConfirm = { course ->
+                scope.launch {
+                    val success = onAssignCourse(course)
+                    if (success) {
+                        showTakeCourseDialog = false
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun TakeCourseDialog(
+    availableCourses: List<String>,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var selectedCourse by rememberSaveable { mutableStateOf(availableCourses.firstOrNull() ?: "") }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Tomar curso") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Selecciona el curso que deseas gestionar. Una vez asignado, solo tú podrás gestionarlo.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(0.dp))
+                availableCourses.forEach { courseName ->
+                    FilterChip(
+                        selected = selectedCourse == courseName,
+                        onClick = { selectedCourse = courseName },
+                        label = { Text(courseName) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                errorMessage?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (selectedCourse.isBlank()) {
+                        errorMessage = "Selecciona un curso."
+                    } else {
+                        errorMessage = null
+                        onConfirm(selectedCourse)
+                    }
+                }
+            ) {
+                Text("Tomar curso")
+            }
+        }
+    )
 }
 
 @Composable
 private fun AssignStudentsDialog(
     notebook: NotebookEntity,
     availableStudents: List<UserAccount>,
+    teacherCourse: String?,
     onDismiss: () -> Unit,
     onSave: (String, Set<String>) -> Unit
 ) {
-    var selectedCourse by rememberSaveable(notebook.id) {
-        mutableStateOf(notebook.course.ifBlank { SchoolCourses.GENERAL })
-    }
+    val defaultCourse = teacherCourse ?: notebook.course.ifBlank { SchoolCourses.GENERAL }
+    var selectedCourse by rememberSaveable(notebook.id) { mutableStateOf(defaultCourse) }
     var selectedEmails by remember(notebook.id, notebook.assignedStudentEmails) {
         mutableStateOf(notebook.assignedStudentsSet)
+    }
+    val filteredStudents = if (teacherCourse != null) {
+        availableStudents.filter { it.course == teacherCourse }
+    } else {
+        availableStudents
     }
 
     AlertDialog(
@@ -381,21 +572,44 @@ private fun AssignStudentsDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text("Curso asignado", style = MaterialTheme.typography.titleMedium)
-                SchoolCourses.NOTEBOOK_COURSES.forEach { courseName ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = selectedCourse == courseName,
-                            onClick = { selectedCourse = courseName }
+                if (teacherCourse != null) {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = teacherCourse,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(12.dp)
                         )
-                        Text(courseName, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Text(
+                        "Este curso está asignado a tu cuenta. No puedes cambiarlo.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    SchoolCourses.NOTEBOOK_COURSES.forEach { courseName ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.RadioButton(
+                                selected = selectedCourse == courseName,
+                                onClick = { selectedCourse = courseName }
+                            )
+                            Text(courseName, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Text("Asignar acceso a cualquier estudiante", style = MaterialTheme.typography.titleMedium)
-                if (availableStudents.isEmpty()) {
-                    Text("No hay estudiantes registrados todavía.")
+                Text(
+                    text = if (teacherCourse != null) "Estudiantes de $teacherCourse" else "Asignar acceso a cualquier estudiante",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                if (filteredStudents.isEmpty()) {
+                    Text("No hay estudiantes registrados en este curso todavía.")
                 } else {
-                    availableStudents.forEach { student ->
+                    filteredStudents.forEach { student ->
                         val emailKey = student.email.trim().lowercase()
                         val checked = emailKey in selectedEmails
                         Row(

@@ -44,6 +44,7 @@ import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
 @Composable
 fun TeacherCreateNotebook(
     availableStudents: List<UserAccount> = emptyList(),
+    teacherCourse: String?,
     onBack: () -> Unit,
     onPublish: suspend (NotebookDraft) -> Boolean,
     onPublished: () -> Unit
@@ -55,6 +56,11 @@ fun TeacherCreateNotebook(
         } ?: TeacherNotebookViewModel()
     }
     val state = viewModel.uiState
+    val filteredStudents = if (teacherCourse != null) {
+        availableStudents.filter { it.course == teacherCourse }
+    } else {
+        availableStudents
+    }
 
     Scaffold(
         topBar = {
@@ -128,18 +134,31 @@ fun TeacherCreateNotebook(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text("Curso de la bitácora", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            text = "Selecciona el curso o usa asignación personalizada.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        SchoolCourses.NOTEBOOK_COURSES.forEach { courseName ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(
-                                    selected = state.course == courseName,
-                                    onClick = { viewModel.onCourseChange(courseName) }
-                                )
-                                Text(courseName, style = MaterialTheme.typography.bodyMedium)
+                        if (teacherCourse != null) {
+                            Text(
+                                text = "Curso asignado: $teacherCourse",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "La bitácora se creará automáticamente para tu curso asignado.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = "Selecciona el curso o usa asignación personalizada.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            SchoolCourses.NOTEBOOK_COURSES.forEach { courseName ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(
+                                        selected = state.course == courseName,
+                                        onClick = { viewModel.onCourseChange(courseName) }
+                                    )
+                                    Text(courseName, style = MaterialTheme.typography.bodyMedium)
+                                }
                             }
                         }
                     }
@@ -156,19 +175,28 @@ fun TeacherCreateNotebook(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Agregar estudiantes a la bitácora", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            text = "Puedes dar acceso directo a cualquier usuario estudiante registrado.",
+                            text = if (teacherCourse != null) "Estudiantes de $teacherCourse" else "Agregar estudiantes a la bitácora",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = if (teacherCourse != null)
+                                "Solo puedes asignar estudiantes de tu curso."
+                            else
+                                "Puedes dar acceso directo a cualquier usuario estudiante registrado.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (availableStudents.isEmpty()) {
+                        if (filteredStudents.isEmpty()) {
                             Text(
-                                text = "Aún no hay usuarios estudiantes registrados.",
+                                text = if (teacherCourse != null)
+                                    "Aún no hay estudiantes registrados en tu curso."
+                                else
+                                    "Aún no hay usuarios estudiantes registrados.",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         } else {
-                            availableStudents.forEach { student ->
+                            filteredStudents.forEach { student ->
                                 val isChecked = student.email.trim().lowercase() in state.assignedStudentEmails
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -195,7 +223,10 @@ fun TeacherCreateNotebook(
             item {
                 state.message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Button(
-                    onClick = { viewModel.publish(onPublish = onPublish, onPublished = onPublished) },
+                    onClick = {
+                        val effectiveCourse = teacherCourse ?: state.course
+                        viewModel.publishWithCourse(effectiveCourse, onPublish = onPublish, onPublished = onPublished)
+                    },
                     enabled = !state.loading,
                     modifier = Modifier.fillMaxWidth()
                 ) {

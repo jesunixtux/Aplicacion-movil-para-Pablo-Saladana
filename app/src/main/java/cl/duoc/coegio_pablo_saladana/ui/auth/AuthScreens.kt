@@ -69,6 +69,7 @@ fun AuthScreens(
     onStartNewEntry: () -> Unit,
     onEditDraftEntry: (StudentEntryEntity) -> Unit,
     onNotebookPublished: suspend (NotebookDraft) -> Boolean,
+    onAssignCourse: suspend (String) -> Boolean,
     onUpdateNotebookAssignments: suspend (Long, String, Set<String>) -> Boolean = { _, _, _ -> false },
     onStudentEntrySaved: suspend (StudentEntryDraft, Boolean) -> Boolean,
     onReviewEntry: suspend (Long, String) -> Boolean,
@@ -131,6 +132,8 @@ fun AuthScreens(
                 rut = currentAccount?.rut ?: "RUT no disponible",
                 gender = currentAccount?.gender ?: UserGender.Other,
                 profilePhotoUri = profilePhotoUri,
+                assignedCourse = currentAccount?.assignedCourse,
+                availableCourses = SchoolCourses.STUDENT_COURSES,
                 notebooks = notebooks.filter { it.teacherEmail == currentAccount?.email },
                 availableStudents = availableStudents,
                 submittedEntries = teacherEntries,
@@ -138,11 +141,13 @@ fun AuthScreens(
                 onLogout = onUserLoggedOut,
                 onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
                 onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) },
+                onAssignCourse = onAssignCourse,
                 onUpdateNotebookAssignments = onUpdateNotebookAssignments,
                 onReviewEntry = onReviewEntry
             )
             AuthDestination.TeacherCreateNotebook -> TeacherCreateNotebook(
                 availableStudents = availableStudents,
+                teacherCourse = currentAccount?.assignedCourse,
                 onBack = { onDestinationChange(AuthDestination.TeacherDashboard) },
                 onPublish = onNotebookPublished,
                 onPublished = { onDestinationChange(AuthDestination.TeacherDashboard) }

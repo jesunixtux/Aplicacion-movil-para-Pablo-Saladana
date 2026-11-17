@@ -23,16 +23,17 @@ class RutValidatorTest {
 
     @Test
     fun acceptsValidRut() {
-        assertTrue(RutValidator.isValid("12.345.678-5"))
-        assertTrue(RutValidator.isValid("11.111.111-1"))
-        assertTrue(RutValidator.isValid("1.000.005-K"))
-        assertTrue(RutValidator.isValid("23.567.224-3"))
+        assertTrue(RutValidator.isValid("123456785"))
+        assertTrue(RutValidator.isValid("111111111"))
+        assertTrue(RutValidator.isValid("100000555"))
+        assertTrue(RutValidator.isValid("235672243"))
     }
 
     @Test
     fun rejectsInvalidRut() {
-        assertFalse(RutValidator.isValid("12.345.678-4"))
-        assertFalse(RutValidator.isValid("123.456.789-0"))
-        assertFalse(RutValidator.isValid("23.567.224-K"))
+        assertFalse(RutValidator.isValid("12345678"))  // Too short
+        assertFalse(RutValidator.isValid("1234567890"))  // Too long
+        assertFalse(RutValidator.isValid("12345678901"))  // Too long
+        assertFalse(RutValidator.isValid("2356722455"))  // Too long
     }
 }

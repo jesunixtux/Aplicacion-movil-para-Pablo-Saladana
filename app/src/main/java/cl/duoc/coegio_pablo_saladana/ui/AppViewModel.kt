@@ -247,6 +247,19 @@ class AppViewModel(
         }
     }
 
+    suspend fun assignCourse(course: String): Boolean {
+        val teacher = uiState.currentAccount ?: return false
+        if (teacher.role != UserRole.Teacher) return false
+        if (teacher.assignedCourse != null) return false
+        val success = userRepository.assignCourseToTeacher(teacher.email, course)
+        if (success) {
+            val updatedAccount = teacher.copy(assignedCourse = course)
+            userRepository.saveSession(updatedAccount)
+            uiState = uiState.copy(currentAccount = updatedAccount)
+        }
+        return success
+    }
+
     fun logout() {
         userRepository.clearSession()
         uiState = uiState.copy(

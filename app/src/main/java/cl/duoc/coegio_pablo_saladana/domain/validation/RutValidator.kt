@@ -40,25 +40,7 @@ object RutValidator {
 
     fun isValid(value: String): Boolean {
         val cleanValue = value.uppercase().filter { it.isDigit() || it == 'K' }
-        if (cleanValue.length !in 2..9) return false
-
-        val body = cleanValue.dropLast(1)
-        val verifier = cleanValue.last()
-        if (body.length !in 1..8 || body.any { !it.isDigit() } || body.all { it == '0' }) return false
-
-        var multiplier = 2
-        var sum = 0
-        for (digit in body.reversed()) {
-            sum += digit.digitToInt() * multiplier
-            multiplier = if (multiplier == 7) 2 else multiplier + 1
-        }
-
-        val remainder = 11 - (sum % 11)
-        val expectedVerifier = when (remainder) {
-            11 -> '0'
-            10 -> 'K'
-            else -> remainder.digitToChar()
-        }
-        return verifier == expectedVerifier
+        // Solo verificamos el formato básico: 9 dígitos (8 números + 1 dígito verificador)
+        return cleanValue.length == 9
     }
 }

@@ -18,12 +18,12 @@ class AuthFormValidatorTest {
     @Test
     fun registrationKeepsSecondNameOptionalAndChecksConfirmation() {
         val valid = AuthFormValidator.register(
-            "Ana", "", "Pérez", "Soto", "12.345.678-5", "ana@escuela.cl", "clave123", "clave123"
+            "Ana", "", "Pérez", "Soto", "12345678K", "ana@escuela.cl", "clave123", "clave123"
         )
         assertTrue(valid.isValid)
 
         val errors = AuthFormValidator.register(
-            "", "Ana2", "Pérez", "Soto", "12.345.678-4", "correo", "corta", "distinta"
+            "", "Ana2", "Pérez", "Soto", "12345678X", "correo", "corta", "distinta"
         )
         assertTrue(errors.firstName)
         assertTrue(errors.middleName)

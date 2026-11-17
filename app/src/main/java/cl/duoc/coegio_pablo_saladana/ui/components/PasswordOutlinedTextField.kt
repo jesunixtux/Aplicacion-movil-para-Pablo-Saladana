@@ -24,6 +24,7 @@ fun PasswordOutlinedTextField(
     isError: Boolean = false,
     supportingMessage: String? = null,
     toggleContentDescription: String = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña",
+    leadingIcon: @Composable (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     OutlinedTextField(
@@ -38,6 +39,7 @@ fun PasswordOutlinedTextField(
             }
         },
         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        leadingIcon = leadingIcon,
         trailingIcon = {
             IconButton(onClick = onToggleVisibility) {
                 Icon(

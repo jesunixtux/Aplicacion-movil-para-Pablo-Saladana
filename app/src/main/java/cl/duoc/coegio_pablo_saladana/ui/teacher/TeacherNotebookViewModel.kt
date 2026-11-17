@@ -49,7 +49,23 @@ class TeacherNotebookViewModel : ViewModel() {
         onPublish: suspend (NotebookDraft) -> Boolean,
         onPublished: () -> Unit
     ) {
-        val draft = currentDraft(uiState)
+        publishDraft(currentDraft(uiState), onPublish, onPublished)
+    }
+
+    fun publishWithCourse(
+        course: String,
+        onPublish: suspend (NotebookDraft) -> Boolean,
+        onPublished: () -> Unit
+    ) {
+        val draft = currentDraft(uiState).copy(course = course)
+        publishDraft(draft, onPublish, onPublished)
+    }
+
+    private fun publishDraft(
+        draft: NotebookDraft,
+        onPublish: suspend (NotebookDraft) -> Boolean,
+        onPublished: () -> Unit
+    ) {
         val errors = NotebookValidator.validate(draft)
         uiState = uiState.copy(attemptedPublish = true, errors = errors)
         if (!errors.isValid) {

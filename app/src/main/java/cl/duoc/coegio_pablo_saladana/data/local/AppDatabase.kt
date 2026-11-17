@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 /** Base local de Room y punto único de acceso a usuarios, bitácoras y registros. */
 @Database(
     entities = [UserEntity::class, NotebookEntity::class, StudentEntryEntity::class],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -35,7 +35,8 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_4_5,
                     MIGRATION_5_6,
                     MIGRATION_6_7,
-                    MIGRATION_7_8
+                    MIGRATION_7_8,
+                    MIGRATION_8_9
                 ).build().also { instance = it }
             }
         }
@@ -129,6 +130,13 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE notebooks ADD COLUMN remoteId INTEGER")
                 db.execSQL("ALTER TABLE student_entries ADD COLUMN remoteId INTEGER")
+            }
+        }
+
+        // Añade el campo de curso asignado para profesores.
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE users ADD COLUMN assignedCourse TEXT")
             }
         }
     }
