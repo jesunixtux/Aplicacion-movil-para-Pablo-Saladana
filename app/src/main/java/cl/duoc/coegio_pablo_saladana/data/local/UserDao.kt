@@ -22,9 +22,9 @@ interface UserDao {
     @Query("UPDATE users SET passwordHash = :newHash WHERE id = :id AND passwordHash = :oldHash")
     suspend fun updatePasswordHash(id: Long, oldHash: String, newHash: String): Int
 
-    @Query("SELECT * FROM users WHERE role = 'Teacher' AND assignedCourse = :course LIMIT 1")
-    suspend fun findTeacherByAssignedCourse(course: String): UserEntity?
+    @Query("SELECT * FROM users WHERE role = 'Teacher' AND assignedCourse = :course AND assignedSubject = :subject LIMIT 1")
+    suspend fun findTeacherByAssignment(course: String, subject: String): UserEntity?
 
-    @Query("UPDATE users SET assignedCourse = :course WHERE email = :email")
-    suspend fun updateAssignedCourse(email: String, course: String): Int
+    @Query("UPDATE users SET assignedCourse = :course, assignedSubject = :subject WHERE email = :email AND role = 'Teacher' AND assignedCourse IS NULL")
+    suspend fun updateTeacherAssignment(email: String, course: String, subject: String): Int
 }

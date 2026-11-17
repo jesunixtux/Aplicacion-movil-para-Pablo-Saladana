@@ -119,6 +119,8 @@ class MainActivity : ComponentActivity() {
                                 onNotebookPublished = appViewModel::publishNotebook,
                                 onAssignCourse = appViewModel::assignCourse,
                                 onUpdateNotebookAssignments = appViewModel::updateNotebookAssignments,
+                                onCloseNotebook = appViewModel::closeNotebook,
+                                onSetNotebookReminders = appViewModel::setNotebookReminders,
                                 onStudentEntrySaved = appViewModel::saveStudentEntry,
                                 onReviewEntry = appViewModel::reviewEntry,
                                 onPhotoEdited = appViewModel::updateProfilePhoto,

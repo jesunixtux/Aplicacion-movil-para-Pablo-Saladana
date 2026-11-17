@@ -13,13 +13,15 @@ object StudentEntryValidator {
         val classDate: Boolean = false,
         val content: Boolean = false,
         val activity: Boolean = false,
-        val learning: Boolean = false
+        val learning: Boolean = false,
+        val links: Boolean = false
     ) {
-        val isValid: Boolean get() = !classDate && !content && !activity && !learning
+        val isValid: Boolean get() = !classDate && !content && !activity && !learning && !links
     }
 
     fun hasContent(draft: StudentEntryDraft): Boolean = draft.content.isNotBlank() ||
-        draft.activity.isNotBlank() || draft.learning.isNotBlank() || draft.doubts.isNotBlank()
+        draft.activity.isNotBlank() || draft.learning.isNotBlank() || draft.doubts.isNotBlank() ||
+        draft.photoUris.isNotBlank() || draft.fileUris.isNotBlank() || draft.links.isNotBlank()
 
     /** Exige una fecha real con el formato que muestra el formulario: dd/MM/aaaa. */
     fun hasValidClassDate(draft: StudentEntryDraft): Boolean {
@@ -35,7 +37,11 @@ object StudentEntryValidator {
         classDate = !hasValidClassDate(draft),
         content = draft.content.isBlank(),
         activity = draft.activity.isBlank(),
-        learning = draft.learning.isBlank()
+        learning = draft.learning.isBlank(),
+        links = draft.links.lineSequence().filter { it.isNotBlank() }.any { line ->
+            val link = runCatching { java.net.URI(line.trim()) }.getOrNull()
+            link == null || link.scheme !in listOf("http", "https") || link.host.isNullOrBlank()
+        }
     )
 
     fun isComplete(draft: StudentEntryDraft): Boolean = validateSubmission(draft).isValid

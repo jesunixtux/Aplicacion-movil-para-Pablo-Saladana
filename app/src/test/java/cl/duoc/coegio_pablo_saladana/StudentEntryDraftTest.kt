@@ -38,4 +38,14 @@ class StudentEntryDraftTest {
         assertTrue(errors.learning)
         assertFalse(errors.isValid)
     }
+
+    @Test
+    fun evidence_acceptsFilesPhotosAndValidLinksOnly() {
+        val base = StudentEntryDraft("18/10/2026", "Tema", "Actividad", "Aprendizaje", "")
+        assertTrue(StudentEntryValidator.isComplete(base.copy(links = "https://example.org/evidencia")))
+        assertFalse(StudentEntryValidator.isComplete(base.copy(links = "javascript:alert(1)")))
+        assertFalse(StudentEntryValidator.isComplete(base.copy(links = "https://")))
+        assertTrue(StudentEntryValidator.hasContent(StudentEntryDraft("", "", "", "", "", photoUris = "content://foto/1")))
+        assertTrue(StudentEntryValidator.hasContent(StudentEntryDraft("", "", "", "", "", fileUris = "content://doc/1")))
+    }
 }

@@ -5,6 +5,7 @@ import cl.duoc.coegio_pablo_saladana.data.local.AppDatabase
 import cl.duoc.coegio_pablo_saladana.data.local.PasswordHasher
 import cl.duoc.coegio_pablo_saladana.data.local.UserEntity
 import cl.duoc.coegio_pablo_saladana.domain.model.SchoolCourses
+import cl.duoc.coegio_pablo_saladana.domain.model.SchoolSubjects
 import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
 import cl.duoc.coegio_pablo_saladana.domain.model.UserGender
 import cl.duoc.coegio_pablo_saladana.domain.model.UserRole
@@ -96,13 +97,14 @@ class UserRepository(context: Context) {
         return userDao.findAllStudents().filter { it.course == course }.map { it.toUserAccount() }
     }
 
-    suspend fun isCourseAvailable(course: String): Boolean {
-        return userDao.findTeacherByAssignedCourse(course) == null
+    suspend fun isAssignmentAvailable(course: String, subject: String): Boolean {
+        return course in SchoolCourses.STUDENT_COURSES && subject in SchoolSubjects.ALL &&
+            userDao.findTeacherByAssignment(course, subject) == null
     }
 
-    suspend fun assignCourseToTeacher(teacherEmail: String, course: String): Boolean {
-        if (!isCourseAvailable(course)) return false
-        val updated = userDao.updateAssignedCourse(teacherEmail, course)
+    suspend fun assignCourseToTeacher(teacherEmail: String, course: String, subject: String): Boolean {
+        if (!isAssignmentAvailable(course, subject)) return false
+        val updated = userDao.updateTeacherAssignment(teacherEmail, course, subject)
         return updated > 0
     }
 
@@ -136,7 +138,8 @@ class UserRepository(context: Context) {
             role = UserRole.valueOf(role),
             gender = runCatching { UserGender.valueOf(gender) }.getOrDefault(UserGender.Other),
             course = course.ifBlank { SchoolCourses.DEFAULT_STUDENT_COURSE },
-            assignedCourse = assignedCourse
+            assignedCourse = assignedCourse,
+            assignedSubject = assignedSubject
         )
     }
 

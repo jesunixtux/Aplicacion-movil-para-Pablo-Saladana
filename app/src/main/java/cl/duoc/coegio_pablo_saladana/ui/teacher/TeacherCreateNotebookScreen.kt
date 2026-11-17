@@ -26,6 +26,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -36,6 +38,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
 import cl.duoc.coegio_pablo_saladana.domain.model.NotebookDraft
 import cl.duoc.coegio_pablo_saladana.domain.model.SchoolCourses
+import cl.duoc.coegio_pablo_saladana.domain.model.SchoolSubjects
 import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
 
@@ -45,6 +48,7 @@ import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
 fun TeacherCreateNotebook(
     availableStudents: List<UserAccount> = emptyList(),
     teacherCourse: String?,
+    teacherSubject: String?,
     onBack: () -> Unit,
     onPublish: suspend (NotebookDraft) -> Boolean,
     onPublished: () -> Unit
@@ -75,6 +79,39 @@ fun TeacherCreateNotebook(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Text("Configura la bitácora mensual", style = MaterialTheme.typography.headlineSmall) }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = state.monthText,
+                        onValueChange = viewModel::onMonthChange,
+                        label = { Text("Mes (1-12)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        isError = state.attemptedPublish && state.errors.period,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = state.yearText,
+                        onValueChange = viewModel::onYearChange,
+                        label = { Text("Año") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        isError = state.attemptedPublish && state.errors.period,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            item {
+                if (teacherSubject != null) {
+                    Text("Asignatura asignada: $teacherSubject", style = MaterialTheme.typography.titleMedium)
+                } else {
+                    Text("Asignatura", style = MaterialTheme.typography.titleMedium)
+                    SchoolSubjects.ALL.forEach { subject ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = state.subject == subject, onClick = { viewModel.onSubjectChange(subject) })
+                            Text(subject)
+                        }
+                    }
+                }
+            }
             item {
                 OutlinedTextField(
                     value = state.title,
@@ -119,6 +156,8 @@ fun TeacherCreateNotebook(
                     onValueChange = viewModel::onQuestionsChange,
                     label = { Text("Preguntas orientadoras") },
                     minLines = 3,
+                    isError = state.attemptedPublish && state.errors.questions,
+                    supportingText = { if (state.attemptedPublish && state.errors.questions) Text("Ingresa al menos una pregunta.") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -147,7 +186,7 @@ fun TeacherCreateNotebook(
                             )
                         } else {
                             Text(
-                                text = "Selecciona el curso o usa asignación personalizada.",
+                                text = "Selecciona uno de los cursos del caso (5.º a 8.º básico).",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -183,7 +222,7 @@ fun TeacherCreateNotebook(
                             text = if (teacherCourse != null)
                                 "Solo puedes asignar estudiantes de tu curso."
                             else
-                                "Puedes dar acceso directo a cualquier usuario estudiante registrado.",
+                                "Solo se otorgará acceso a estudiantes del curso seleccionado.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -225,7 +264,10 @@ fun TeacherCreateNotebook(
                 Button(
                     onClick = {
                         val effectiveCourse = teacherCourse ?: state.course
-                        viewModel.publishWithCourse(effectiveCourse, onPublish = onPublish, onPublished = onPublished)
+                        viewModel.publishWithCourse(
+                            effectiveCourse, teacherSubject ?: state.subject,
+                            onPublish = onPublish, onPublished = onPublished
+                        )
                     },
                     enabled = !state.loading,
                     modifier = Modifier.fillMaxWidth()

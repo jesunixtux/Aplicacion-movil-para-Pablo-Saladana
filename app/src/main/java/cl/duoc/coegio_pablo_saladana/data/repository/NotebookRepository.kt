@@ -3,31 +3,21 @@ package cl.duoc.coegio_pablo_saladana.data.repository
 import android.content.Context
 import cl.duoc.coegio_pablo_saladana.data.local.AppDatabase
 import cl.duoc.coegio_pablo_saladana.data.local.NotebookEntity
-import cl.duoc.coegio_pablo_saladana.data.remote.NotebookRemoteDataSource
 import cl.duoc.coegio_pablo_saladana.domain.model.NotebookDraft
-import cl.duoc.coegio_pablo_saladana.domain.model.SchoolCourses
 import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
 import cl.duoc.coegio_pablo_saladana.domain.model.UserRole
 import cl.duoc.coegio_pablo_saladana.domain.validation.NotebookValidator
 
-/** Gestiona la consulta, publicación y asignación de bitácoras en Room y en el microservicio Spring Boot. */
+/** Etapa Android del MVP: guarda bitácoras en Room. La sincronización remota se integrará después. */
 class NotebookRepository(context: Context) {
-    private val notebookDao = AppDatabase.getInstance(context).notebookDao()
+    private val database = AppDatabase.getInstance(context)
+    private val notebookDao = database.notebookDao()
+    private val userDao = database.userDao()
 
     suspend fun findAll(): List<NotebookEntity> = notebookDao.findAll()
 
-    /** Sincroniza bitácoras desde el microservicio Spring Boot sin duplicar registros locales. */
+    /** Mientras el backend no admita el modelo mensual, Room es la fuente de datos. */
     suspend fun syncWithBackend(): List<NotebookEntity> {
-        val remoteNotebooks = NotebookRemoteDataSource.fetchAll()
-        if (remoteNotebooks != null) {
-            for (remote in remoteNotebooks) {
-                val existing = remote.remoteId?.let { notebookDao.findByRemoteId(it) }
-                    ?: notebookDao.findByRemoteIdentity(remote.title, remote.teacherEmail, remote.createdAt)
-                if (existing == null) notebookDao.insert(remote)
-                else notebookDao.update(remote.copy(id = existing.id))
-            }
-        }
-        // shortcut: las bitácoras antiguas creadas solo en Room no se publican automáticamente; migrarlas si se necesita conservarlas en MySQL.
         return notebookDao.findAll()
     }
 
@@ -35,15 +25,34 @@ class NotebookRepository(context: Context) {
         if (teacher.role != UserRole.Teacher) return null
 
         val normalizedDraft = draft.normalized()
-        if (!NotebookValidator.isValid(normalizedDraft)) return null
-
-        val remoteCreated = NotebookRemoteDataSource.create(normalizedDraft, teacher)
-            ?.takeIf { it.remoteId != null } ?: return null
-        val id = notebookDao.insert(remoteCreated)
-        return remoteCreated.copy(id = id)
+        if (!NotebookValidator.isValid(normalizedDraft) ||
+            normalizedDraft.course != teacher.assignedCourse ||
+            normalizedDraft.subject != teacher.assignedSubject) return null
+        if (notebookDao.findAll().any {
+                it.teacherEmail == teacher.email && it.course == normalizedDraft.course &&
+                    it.subject == normalizedDraft.subject && it.month == normalizedDraft.month &&
+                    it.year == normalizedDraft.year
+            }) return null
+        val now = System.currentTimeMillis()
+        val notebook = NotebookEntity(
+            title = normalizedDraft.title,
+            purpose = normalizedDraft.purpose,
+            instructions = normalizedDraft.instructions,
+            questions = normalizedDraft.questions,
+            teacherEmail = teacher.email,
+            teacherName = teacher.fullName,
+            createdAt = now,
+            course = normalizedDraft.course,
+            subject = normalizedDraft.subject,
+            month = normalizedDraft.month,
+            year = normalizedDraft.year,
+            publishedAt = now,
+            assignedStudentEmails = normalizedDraft.assignedStudentEmails.joinToString(",")
+        )
+        return notebook.copy(id = notebookDao.insert(notebook))
     }
 
-    /** Permite al docente asignar o quitar cualquier estudiante y actualizar el curso de la bitácora. */
+    /** Solo el docente responsable puede actualizar la lista de estudiantes de su curso. */
     suspend fun updateAssignments(
         notebookId: Long,
         teacher: UserAccount,
@@ -53,17 +62,41 @@ class NotebookRepository(context: Context) {
         if (teacher.role != UserRole.Teacher) return null
         val existing = notebookDao.findById(notebookId)
             ?.takeIf { it.teacherEmail.equals(teacher.email, ignoreCase = true) } ?: return null
-        val normalizedCourse = course.trim().ifBlank { SchoolCourses.GENERAL }
+        if (existing.isClosed || existing.course != teacher.assignedCourse ||
+            existing.subject != teacher.assignedSubject || course != teacher.assignedCourse) return null
+        val normalizedCourse = teacher.assignedCourse ?: return null
+        val studentsInCourse = userDao.findAllStudents()
+            .filter { it.course == normalizedCourse }
+            .map { it.email.lowercase() }.toSet()
         val serializedEmails = studentEmails
             .map { it.trim().lowercase() }
-            .filter(String::isNotBlank)
+            .filter { it in studentsInCourse }
             .sorted()
             .joinToString(",")
-        val remoteUpdated = NotebookRemoteDataSource.update(existing.copy(
+        val updated = existing.copy(
             course = normalizedCourse,
             assignedStudentEmails = serializedEmails
-        )) ?: return null
-        val updated = remoteUpdated.copy(id = existing.id)
+        )
+        notebookDao.update(updated)
+        return updated
+    }
+
+    suspend fun close(notebookId: Long, teacher: UserAccount): NotebookEntity? {
+        if (teacher.role != UserRole.Teacher) return null
+        val existing = notebookDao.findById(notebookId) ?: return null
+        if (existing.isClosed || existing.teacherEmail != teacher.email ||
+            existing.course != teacher.assignedCourse || existing.subject != teacher.assignedSubject) return null
+        val closed = existing.copy(isClosed = true, closedAt = System.currentTimeMillis())
+        notebookDao.update(closed)
+        return closed
+    }
+
+    suspend fun setRemindersEnabled(notebookId: Long, teacher: UserAccount, enabled: Boolean): NotebookEntity? {
+        if (teacher.role != UserRole.Teacher) return null
+        val existing = notebookDao.findById(notebookId) ?: return null
+        if (existing.teacherEmail != teacher.email || existing.course != teacher.assignedCourse ||
+            existing.subject != teacher.assignedSubject) return null
+        val updated = existing.copy(remindersEnabled = enabled)
         notebookDao.update(updated)
         return updated
     }

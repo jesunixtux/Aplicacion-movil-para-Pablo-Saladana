@@ -25,5 +25,6 @@ data class UserEntity(
     val gender: String,
     val passwordHash: String,
     val course: String = SchoolCourses.DEFAULT_STUDENT_COURSE,
-    val assignedCourse: String? = null
+    val assignedCourse: String? = null,
+    val assignedSubject: String? = null
 )

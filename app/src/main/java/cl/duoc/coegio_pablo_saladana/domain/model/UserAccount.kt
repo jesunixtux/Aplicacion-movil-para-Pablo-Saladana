@@ -24,7 +24,8 @@ data class UserAccount(
     val role: UserRole,
     val gender: UserGender,
     val course: String = SchoolCourses.DEFAULT_STUDENT_COURSE,
-    val assignedCourse: String? = null // Para profesores: el curso que tienen asignado exclusivamente
+    val assignedCourse: String? = null, // Curso asignado al docente
+    val assignedSubject: String? = null // Asignatura asignada al docente
 ) {
     val fullName: String
         get() = listOf(firstName, middleName, paternalSurname, maternalSurname)

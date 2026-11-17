@@ -42,10 +42,10 @@ class NotebookDraftTest {
     }
 
     @Test
-    fun notebookAccess_allowsMatchingCourseOrExplicitlyAssignedStudent() {
-        val studentCourseA = student("alumno1@escuela.cl", "1° Medio A")
-        val studentCourseB = student("alumno2@escuela.cl", "2° Medio B")
-        val invitedStudent = student("invitado@escuela.cl", "3° Medio A")
+    fun notebookAccess_requiresMatchingCourseAndExplicitAssignmentWhenConfigured() {
+        val studentCourseA = student("alumno1@escuela.cl", "5° Básico A")
+        val studentCourseB = student("alumno2@escuela.cl", "6° Básico B")
+        val invitedStudent = student("invitado@escuela.cl", "5° Básico A")
 
         val notebookForCourseA = NotebookEntity(
             id = 1,
@@ -56,11 +56,11 @@ class NotebookDraftTest {
             teacherEmail = "docente@escuela.cl",
             teacherName = "Docente",
             createdAt = 1L,
-            course = "1° Medio A",
+            course = "5° Básico A",
             assignedStudentEmails = "invitado@escuela.cl"
         )
 
-        assertTrue(notebookForCourseA.isAccessibleBy(studentCourseA))
+        assertFalse(notebookForCourseA.isAccessibleBy(studentCourseA))
         assertTrue(notebookForCourseA.isAccessibleBy(invitedStudent))
         assertFalse(notebookForCourseA.isAccessibleBy(studentCourseB))
 
@@ -69,7 +69,16 @@ class NotebookDraftTest {
             assignedStudentEmails = "alumno2@escuela.cl"
         )
         assertFalse(customNotebook.isAccessibleBy(studentCourseA))
-        assertTrue(customNotebook.isAccessibleBy(studentCourseB))
+        assertFalse(customNotebook.isAccessibleBy(studentCourseB))
+    }
+
+    @Test
+    fun monthlyNotebook_requiresValidMonthYearAndGuidingQuestions() {
+        val valid = NotebookDraft("Noviembre", "Aprender", "Registrar", "¿Qué aprendiste?", month = 11, year = 2026)
+        assertTrue(NotebookValidator.isValid(valid))
+        assertFalse(NotebookValidator.isValid(valid.copy(month = 13)))
+        assertFalse(NotebookValidator.isValid(valid.copy(year = 0)))
+        assertFalse(NotebookValidator.isValid(valid.copy(questions = " ")))
     }
 
     private fun student(email: String, course: String) = UserAccount(

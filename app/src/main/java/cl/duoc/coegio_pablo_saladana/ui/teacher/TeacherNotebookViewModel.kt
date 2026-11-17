@@ -35,6 +35,12 @@ class TeacherNotebookViewModel : ViewModel() {
         updateState(uiState.copy(course = course, message = null))
     }
 
+    fun onSubjectChange(subject: String) = updateState(uiState.copy(subject = subject, message = null))
+
+    fun onMonthChange(value: String) = updateState(uiState.copy(monthText = value, message = null))
+
+    fun onYearChange(value: String) = updateState(uiState.copy(yearText = value, message = null))
+
     fun onToggleStudent(email: String) {
         val normalized = email.trim().lowercase()
         val updated = if (normalized in uiState.assignedStudentEmails) {
@@ -54,10 +60,11 @@ class TeacherNotebookViewModel : ViewModel() {
 
     fun publishWithCourse(
         course: String,
+        subject: String,
         onPublish: suspend (NotebookDraft) -> Boolean,
         onPublished: () -> Unit
     ) {
-        val draft = currentDraft(uiState).copy(course = course)
+        val draft = currentDraft(uiState).copy(course = course, subject = subject)
         publishDraft(draft, onPublish, onPublished)
     }
 
@@ -97,6 +104,9 @@ class TeacherNotebookViewModel : ViewModel() {
         instructions = state.instructions,
         questions = state.questions,
         course = state.course,
+        subject = state.subject,
+        month = state.monthText.toIntOrNull() ?: 0,
+        year = state.yearText.toIntOrNull() ?: 0,
         assignedStudentEmails = state.assignedStudentEmails
     )
 }

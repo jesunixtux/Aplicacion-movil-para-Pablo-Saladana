@@ -80,7 +80,7 @@ class AppViewModel(
                 isRestoringSession = false
             )
 
-            // Sincroniza microservicio Spring Boot y API externa en segundo plano sin bloquear el inicio.
+            // Mantiene la lectura local; la integración del nuevo modelo con Spring Boot se hará después.
             val syncedNotebooks = notebookRepository.syncWithBackend()
             val syncedStudentEntries = restoredSession?.takeIf { it.role == UserRole.Student }
                 ?.let { studentEntryRepository.findByStudent(it.email) } ?: emptyList()
@@ -200,6 +200,24 @@ class AppViewModel(
         return true
     }
 
+    suspend fun closeNotebook(notebookId: Long): Boolean {
+        val teacher = uiState.currentAccount ?: return false
+        val updated = notebookRepository.close(notebookId, teacher) ?: return false
+        uiState = uiState.copy(notebooks = uiState.notebooks.map {
+            if (it.id == updated.id) updated else it
+        })
+        return true
+    }
+
+    suspend fun setNotebookReminders(notebookId: Long, enabled: Boolean): Boolean {
+        val teacher = uiState.currentAccount ?: return false
+        val updated = notebookRepository.setRemindersEnabled(notebookId, teacher, enabled) ?: return false
+        uiState = uiState.copy(notebooks = uiState.notebooks.map {
+            if (it.id == updated.id) updated else it
+        })
+        return true
+    }
+
     suspend fun saveStudentEntry(draft: StudentEntryDraft, isDraft: Boolean): Boolean {
         val student = uiState.currentAccount ?: return false
         val existingDraft = uiState.editingEntry
@@ -247,13 +265,13 @@ class AppViewModel(
         }
     }
 
-    suspend fun assignCourse(course: String): Boolean {
+    suspend fun assignCourse(course: String, subject: String): Boolean {
         val teacher = uiState.currentAccount ?: return false
         if (teacher.role != UserRole.Teacher) return false
         if (teacher.assignedCourse != null) return false
-        val success = userRepository.assignCourseToTeacher(teacher.email, course)
+        val success = userRepository.assignCourseToTeacher(teacher.email, course, subject)
         if (success) {
-            val updatedAccount = teacher.copy(assignedCourse = course)
+            val updatedAccount = teacher.copy(assignedCourse = course, assignedSubject = subject)
             userRepository.saveSession(updatedAccount)
             uiState = uiState.copy(currentAccount = updatedAccount)
         }

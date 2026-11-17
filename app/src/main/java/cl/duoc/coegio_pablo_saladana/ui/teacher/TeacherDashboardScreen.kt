@@ -1,6 +1,8 @@
 package cl.duoc.coegio_pablo_saladana.ui.teacher
 
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,16 +52,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cl.duoc.coegio_pablo_saladana.data.local.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.data.local.StudentEntryEntity
 import cl.duoc.coegio_pablo_saladana.domain.model.ChileanHoliday
 import cl.duoc.coegio_pablo_saladana.domain.model.SchoolCourses
+import cl.duoc.coegio_pablo_saladana.domain.model.SchoolSubjects
 import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
 import cl.duoc.coegio_pablo_saladana.domain.model.UserGender
 import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
+import cl.duoc.coegio_pablo_saladana.ui.components.EntryEvidence
 import cl.duoc.coegio_pablo_saladana.ui.components.HolidayBannerCard
 import cl.duoc.coegio_pablo_saladana.ui.components.greetingFor
 import cl.duoc.coegio_pablo_saladana.ui.profile.ProfileAvatar
@@ -74,6 +79,7 @@ fun TeacherDashboard(
     gender: UserGender,
     profilePhotoUri: Uri?,
     assignedCourse: String?,
+    assignedSubject: String?,
     availableCourses: List<String>,
     notebooks: List<NotebookEntity>,
     availableStudents: List<UserAccount> = emptyList(),
@@ -82,16 +88,46 @@ fun TeacherDashboard(
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
     onCreateNotebook: () -> Unit,
-    onAssignCourse: suspend (String) -> Boolean,
+    onAssignCourse: suspend (String, String) -> Boolean,
     onUpdateNotebookAssignments: suspend (Long, String, Set<String>) -> Boolean = { _, _, _ -> false },
+    onCloseNotebook: suspend (Long) -> Boolean,
+    onSetNotebookReminders: suspend (Long, Boolean) -> Boolean,
     onReviewEntry: suspend (Long, String) -> Boolean
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val reviewedCount = submittedEntries.count { it.isReviewed }
     val nextHoliday = holidays.firstOrNull()
     var managingNotebookId by rememberSaveable { mutableStateOf<Long?>(null) }
     val managingNotebook = notebooks.firstOrNull { it.id == managingNotebookId }
     var showTakeCourseDialog by rememberSaveable { mutableStateOf(false) }
+    var closingNotebookId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var exportingNotebookId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var reportMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var studentFilter by rememberSaveable { mutableStateOf("") }
+    var dateFilter by rememberSaveable { mutableStateOf("") }
+    var reviewFilter by rememberSaveable { mutableStateOf("Todos") }
+    val filteredEntries = submittedEntries.filter { entry ->
+        (studentFilter.isBlank() || entry.studentName.contains(studentFilter, ignoreCase = true) ||
+            entry.studentEmail.contains(studentFilter, ignoreCase = true)) &&
+            (dateFilter.isBlank() || entry.classDate.contains(dateFilter, ignoreCase = true)) &&
+            (reviewFilter == "Todos" || (reviewFilter == "Pendientes" && !entry.isReviewed) ||
+                (reviewFilter == "Revisados" && entry.isReviewed))
+    }
+    val pdfLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri ->
+        val notebook = notebooks.firstOrNull { it.id == exportingNotebookId }
+        if (uri != null && notebook != null) {
+            val studentList = availableStudents.filter { it.course == notebook.course &&
+                (notebook.assignedStudentsSet.isEmpty() || it.email.lowercase() in notebook.assignedStudentsSet) }
+            reportMessage = if (MonthlyReportWriter.write(
+                context.contentResolver, uri, notebook, studentList,
+                submittedEntries.filter { it.notebookId == notebook.id }
+            )) "Informe PDF guardado." else "No se pudo generar el PDF."
+        }
+        exportingNotebookId = null
+    }
 
     Scaffold(
         topBar = {
@@ -227,7 +263,7 @@ fun TeacherDashboard(
                                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                     Text(
-                                        text = "Curso asignado: $assignedCourse",
+                                        text = "Curso asignado: $assignedCourse · ${assignedSubject.orEmpty()}",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -253,6 +289,9 @@ fun TeacherDashboard(
                     )
                 }
             }
+            if (reportMessage != null) {
+                item { Text(reportMessage.orEmpty(), color = MaterialTheme.colorScheme.primary) }
+            }
             if (nextHoliday != null) {
                 item {
                     AnimatedListItem(3) {
@@ -265,6 +304,11 @@ fun TeacherDashboard(
             }
             itemsIndexed(notebooks, key = { _, notebook -> "notebook-${notebook.id}" }) { index, notebook ->
                 val assignedCount = notebook.assignedStudentsSet.size
+                val eligible = availableStudents.filter { it.course == notebook.course &&
+                    (notebook.assignedStudentsSet.isEmpty() || it.email.lowercase() in notebook.assignedStudentsSet) }
+                val entriesForNotebook = submittedEntries.filter { it.notebookId == notebook.id }
+                val participants = entriesForNotebook.map { it.studentEmail.lowercase() }.toSet()
+                val absentStudents = eligible.filter { it.email.lowercase() !in participants }
                 AnimatedListItem(index + 4, Modifier.animateItem()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -292,7 +336,7 @@ fun TeacherDashboard(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(notebook.title, style = MaterialTheme.typography.titleLarge)
                                     Text(
-                                        text = "Publicada · Sincronizada con microservicio",
+                                        text = if (notebook.isClosed) "Cerrada · ${notebook.periodLabel}" else "Publicada · ${notebook.periodLabel}",
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -314,6 +358,21 @@ fun TeacherDashboard(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Text("Asignatura: ${notebook.subject}", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "Participaron: ${eligible.size - absentStudents.size}/${eligible.size} · " +
+                                    "Sin participar: ${absentStudents.size} · " +
+                                    "Aportes: ${entriesForNotebook.size} " +
+                                    "(${entriesForNotebook.count { it.isReviewed }} revisados, " +
+                                    "${entriesForNotebook.count { !it.isReviewed }} pendientes)",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            if (absentStudents.isNotEmpty()) {
+                                Text("Sin participación: ${absentStudents.joinToString { it.fullName }}")
+                            }
+                            if (notebook.remindersEnabled && notebook.isOpen) {
+                                NotebookReminderText(notebook)
+                            }
                             Text(
                                 text = if (assignedCount > 0) {
                                     "$assignedCount estudiante(s) con acceso directo asignado"
@@ -326,12 +385,30 @@ fun TeacherDashboard(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             OutlinedButton(
                                 onClick = { managingNotebookId = notebook.id },
+                                enabled = notebook.isOpen,
                                 shape = MaterialTheme.shapes.medium,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text("Gestionar curso y estudiantes")
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    exportingNotebookId = notebook.id
+                                    pdfLauncher.launch("bitacora-${notebook.year}-${notebook.month}-${notebook.id}.pdf")
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Descargar informe mensual PDF") }
+                            OutlinedButton(
+                                onClick = { scope.launch { onSetNotebookReminders(notebook.id, !notebook.remindersEnabled) } },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text(if (notebook.remindersEnabled) "Desactivar recordatorios" else "Activar recordatorios") }
+                            if (notebook.isOpen) {
+                                Button(
+                                    onClick = { closingNotebookId = notebook.id },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("Cerrar bitácora del mes") }
                             }
                         }
                     }
@@ -340,10 +417,29 @@ fun TeacherDashboard(
             item {
                 Text("Registros enviados", style = MaterialTheme.typography.titleLarge)
             }
+            item {
+                OutlinedTextField(
+                    value = studentFilter, onValueChange = { studentFilter = it },
+                    label = { Text("Filtrar por estudiante") }, modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = dateFilter, onValueChange = { dateFilter = it },
+                    label = { Text("Filtrar por fecha (dd/MM/aaaa)") }, modifier = Modifier.fillMaxWidth()
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf("Todos", "Pendientes", "Revisados").forEach { status ->
+                        FilterChip(
+                            selected = reviewFilter == status,
+                            onClick = { reviewFilter = status },
+                            label = { Text(status) }
+                        )
+                    }
+                }
+            }
             if (submittedEntries.isEmpty()) {
                 item { Text("Aún no hay registros enviados por estudiantes.") }
             }
-            itemsIndexed(submittedEntries, key = { _, entry -> "entry-${entry.id}" }) { index, entry ->
+            itemsIndexed(filteredEntries, key = { _, entry -> "entry-${entry.id}" }) { index, entry ->
                 var feedbackText by rememberSaveable(entry.id) { mutableStateOf(entry.teacherFeedback) }
                 var isSavingReview by remember(entry.id) { mutableStateOf(false) }
 
@@ -396,6 +492,7 @@ fun TeacherDashboard(
                             if (entry.doubts.isNotBlank()) {
                                 Text("Dudas: ${entry.doubts}", style = MaterialTheme.typography.bodyMedium)
                             }
+                            EntryEvidence(entry.photoUris, entry.fileUris, entry.links)
 
                             OutlinedTextField(
                                 value = feedbackText,
@@ -468,14 +565,31 @@ fun TeacherDashboard(
         TakeCourseDialog(
             availableCourses = availableCourses,
             onDismiss = { showTakeCourseDialog = false },
-            onConfirm = { course ->
+            onConfirm = { course, subject ->
                 scope.launch {
-                    val success = onAssignCourse(course)
+                    val success = onAssignCourse(course, subject)
                     if (success) {
                         showTakeCourseDialog = false
                     }
                 }
             }
+        )
+    }
+    if (closingNotebookId != null) {
+        AlertDialog(
+            onDismissRequest = { closingNotebookId = null },
+            title = { Text("Cerrar bitácora mensual") },
+            text = { Text("Al cerrar esta bitácora los estudiantes no podrán enviar nuevos registros. Sus aportes e historial se conservarán.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val id = closingNotebookId ?: return@TextButton
+                    scope.launch {
+                        if (!onCloseNotebook(id)) reportMessage = "No se pudo cerrar la bitácora."
+                        closingNotebookId = null
+                    }
+                }) { Text("Confirmar cierre") }
+            },
+            dismissButton = { TextButton(onClick = { closingNotebookId = null }) { Text("Cancelar") } }
         )
     }
 }
@@ -484,9 +598,10 @@ fun TeacherDashboard(
 private fun TakeCourseDialog(
     availableCourses: List<String>,
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onConfirm: (String, String) -> Unit
 ) {
     var selectedCourse by rememberSaveable { mutableStateOf(availableCourses.firstOrNull() ?: "") }
+    var selectedSubject by rememberSaveable { mutableStateOf(SchoolSubjects.DEFAULT) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     AlertDialog(
@@ -498,7 +613,7 @@ private fun TakeCourseDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    "Selecciona el curso que deseas gestionar. Una vez asignado, solo tú podrás gestionarlo.",
+                    "Selecciona el curso y la asignatura que deseas gestionar con esta cuenta de prueba.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -512,6 +627,15 @@ private fun TakeCourseDialog(
                             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                             selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                         ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Text("Asignatura asignada", style = MaterialTheme.typography.titleMedium)
+                SchoolSubjects.ALL.forEach { subject ->
+                    FilterChip(
+                        selected = selectedSubject == subject,
+                        onClick = { selectedSubject = subject },
+                        label = { Text(subject) },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -534,7 +658,7 @@ private fun TakeCourseDialog(
                         errorMessage = "Selecciona un curso."
                     } else {
                         errorMessage = null
-                        onConfirm(selectedCourse)
+                        onConfirm(selectedCourse, selectedSubject)
                     }
                 }
             ) {
@@ -609,6 +733,7 @@ private fun AssignStudentsDialog(
                 if (filteredStudents.isEmpty()) {
                     Text("No hay estudiantes registrados en este curso todavía.")
                 } else {
+                    Text("Si no marcas estudiantes, podrán participar todos los estudiantes del curso.")
                     filteredStudents.forEach { student ->
                         val emailKey = student.email.trim().lowercase()
                         val checked = emailKey in selectedEmails

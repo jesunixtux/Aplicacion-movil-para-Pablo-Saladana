@@ -52,7 +52,8 @@ fun StudentNotebookDetail(
                         )
                         notebook?.let {
                             Text(
-                                text = "Docente: ${it.teacherName}",
+                                text = "${it.course} · ${it.subject} · ${it.periodLabel} · " +
+                                    (if (it.isClosed) "Cerrada" else "Publicada") + " · Docente: ${it.teacherName}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -82,12 +83,13 @@ fun StudentNotebookDetail(
                 AnimatedListItem(4) {
                     Button(
                         onClick = onCreateEntry,
-                        enabled = notebook != null,
+                        enabled = notebook?.isOpen == true,
                         shape = MaterialTheme.shapes.medium,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Crear registro de clase")
                     }
+                    if (notebook?.isClosed == true) Text("Bitácora cerrada: puedes consultar tu historial, pero no enviar más registros.")
                 }
             }
             item {

@@ -6,13 +6,19 @@ data class StudentEntryDraft(
     val content: String,
     val activity: String,
     val learning: String,
-    val doubts: String
+    val doubts: String,
+    val photoUris: String = "",
+    val fileUris: String = "",
+    val links: String = ""
 ) {
     fun normalized(): StudentEntryDraft = copy(
         classDate = classDate.trim(),
         content = content.trim(),
         activity = activity.trim(),
         learning = learning.trim(),
-        doubts = doubts.trim()
+        doubts = doubts.trim(),
+        photoUris = photoUris.trim(),
+        fileUris = fileUris.trim(),
+        links = links.trim()
     )
 }

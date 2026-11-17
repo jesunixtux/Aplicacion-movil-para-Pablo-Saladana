@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import cl.duoc.coegio_pablo_saladana.data.local.StudentEntryEntity
 import cl.duoc.coegio_pablo_saladana.ui.components.AnimatedListItem
 import cl.duoc.coegio_pablo_saladana.ui.components.EndOfContent
+import cl.duoc.coegio_pablo_saladana.ui.components.EntryEvidence
 
 /** Lista los registros guardados por la cuenta estudiante actual. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,7 +77,7 @@ private fun StudentHistoryEntryCard(
     val statusLabel = when {
         entry.isDraft -> "Borrador"
         entry.isReviewed -> "Enviado · Revisado por docente"
-        else -> "Enviado"
+        else -> "Enviado · Pendiente de revisión"
     }
     val badgeContainerColor = when {
         entry.isDraft -> MaterialTheme.colorScheme.tertiaryContainer
@@ -137,13 +138,18 @@ private fun StudentHistoryEntryCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Retroalimentación docente: ${entry.teacherFeedback}",
+                        text = "Retroalimentación docente: ${entry.teacherFeedback}" +
+                            (entry.reviewedAt?.let {
+                                " · ${java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale("es", "CL")).format(java.util.Date(it))}"
+                            } ?: ""),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(12.dp)
                     )
                 }
             }
+
+            EntryEvidence(entry.photoUris, entry.fileUris, entry.links)
 
             if (entry.isDraft) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

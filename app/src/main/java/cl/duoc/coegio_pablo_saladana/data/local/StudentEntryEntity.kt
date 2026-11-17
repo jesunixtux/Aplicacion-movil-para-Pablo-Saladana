@@ -21,5 +21,11 @@ data class StudentEntryEntity(
     val createdAt: Long,
     val isReviewed: Boolean = false,
     val teacherFeedback: String = "",
-    val remoteId: Long? = null
+    val remoteId: Long? = null,
+    val photoUris: String = "",
+    val fileUris: String = "",
+    val links: String = "",
+    val submittedAt: Long? = null,
+    val reviewedAt: Long? = null,
+    val reviewerEmail: String = ""
 )

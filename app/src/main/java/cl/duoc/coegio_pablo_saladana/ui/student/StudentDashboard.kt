@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cl.duoc.coegio_pablo_saladana.data.local.NotebookEntity
+import cl.duoc.coegio_pablo_saladana.data.local.StudentEntryEntity
 import cl.duoc.coegio_pablo_saladana.domain.model.ChileanHoliday
 import cl.duoc.coegio_pablo_saladana.domain.model.SchoolCourses
 import cl.duoc.coegio_pablo_saladana.domain.model.UserGender
@@ -55,6 +56,7 @@ fun StudentDashboard(
     gender: UserGender,
     profilePhotoUri: Uri?,
     notebooks: List<NotebookEntity>,
+    entries: List<StudentEntryEntity> = emptyList(),
     holidays: List<ChileanHoliday>,
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
@@ -62,6 +64,10 @@ fun StudentDashboard(
     onOpenHistory: () -> Unit
 ) {
     val nextHoliday = holidays.firstOrNull()
+    val pendingNotebooks = notebooks.filter { notebook ->
+        notebook.isOpen && entries.none { entry -> entry.notebookId == notebook.id && !entry.isDraft }
+    }
+    val draftCount = entries.count { it.isDraft }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -99,6 +105,19 @@ fun StudentDashboard(
                         HolidayBannerCard(holiday = nextHoliday)
                     }
                 }
+            }
+
+            if (pendingNotebooks.isNotEmpty()) {
+                item {
+                    Text(
+                        "Aviso: tienes ${pendingNotebooks.size} bitácora(s) activa(s) sin aporte enviado.",
+                        color = MaterialTheme.colorScheme.tertiary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+            if (draftCount > 0) {
+                item { Text("Tienes $draftCount borrador(es) guardado(s) en tu historial.") }
             }
 
             itemsIndexed(
@@ -256,7 +275,7 @@ private fun NotebookCard(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "Docente: ${notebook.teacherName} · ${notebook.course}",
+                            text = "Docente: ${notebook.teacherName} · ${notebook.course} · ${notebook.subject} · ${notebook.periodLabel}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -268,7 +287,7 @@ private fun NotebookCard(
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
-                        text = "Disponible",
+                        text = if (notebook.isClosed) "Cerrada" else "Disponible",
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)

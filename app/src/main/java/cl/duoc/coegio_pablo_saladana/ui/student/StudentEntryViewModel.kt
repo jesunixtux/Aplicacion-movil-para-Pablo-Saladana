@@ -52,6 +52,26 @@ class StudentEntryViewModel(initialEntry: StudentEntryEntity? = null) : ViewMode
         updateState(uiState.copy(doubts = value))
     }
 
+    fun onLinksChange(value: String) = updateState(uiState.copy(links = value, message = null))
+
+    fun onPhotoAdded(uri: String) = updateState(uiState.copy(
+        photoUris = (uiState.photoUris.lineSequence().filter(String::isNotBlank).toList() + uri)
+            .distinct().joinToString("\n"), message = null
+    ))
+
+    fun onFileAdded(uri: String) = updateState(uiState.copy(
+        fileUris = (uiState.fileUris.lineSequence().filter(String::isNotBlank).toList() + uri)
+            .distinct().joinToString("\n"), message = null
+    ))
+
+    fun onRemovePhoto(uri: String) = updateState(uiState.copy(
+        photoUris = uiState.photoUris.lineSequence().filter { it.isNotBlank() && it != uri }.joinToString("\n")
+    ))
+
+    fun onRemoveFile(uri: String) = updateState(uiState.copy(
+        fileUris = uiState.fileUris.lineSequence().filter { it.isNotBlank() && it != uri }.joinToString("\n")
+    ))
+
     fun saveEntry(
         isDraft: Boolean,
         onSave: suspend (StudentEntryDraft, Boolean) -> Boolean,
@@ -101,7 +121,10 @@ class StudentEntryViewModel(initialEntry: StudentEntryEntity? = null) : ViewMode
         content = state.content,
         activity = state.activity,
         learning = state.learning,
-        doubts = state.doubts
+        doubts = state.doubts,
+        photoUris = state.photoUris,
+        fileUris = state.fileUris,
+        links = state.links
     )
 
     companion object {
@@ -112,13 +135,19 @@ class StudentEntryViewModel(initialEntry: StudentEntryEntity? = null) : ViewMode
             val activity = initialEntry?.activity ?: ""
             val learning = initialEntry?.learning ?: ""
             val doubts = initialEntry?.doubts ?: ""
-            val draft = StudentEntryDraft(date, content, activity, learning, doubts)
+            val photoUris = initialEntry?.photoUris ?: ""
+            val fileUris = initialEntry?.fileUris ?: ""
+            val links = initialEntry?.links ?: ""
+            val draft = StudentEntryDraft(date, content, activity, learning, doubts, photoUris, fileUris, links)
             return StudentEntryUiState(
                 date = date,
                 content = content,
                 activity = activity,
                 learning = learning,
                 doubts = doubts,
+                photoUris = photoUris,
+                fileUris = fileUris,
+                links = links,
                 errors = StudentEntryValidator.validateSubmission(draft)
             )
         }

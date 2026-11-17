@@ -69,8 +69,10 @@ fun AuthScreens(
     onStartNewEntry: () -> Unit,
     onEditDraftEntry: (StudentEntryEntity) -> Unit,
     onNotebookPublished: suspend (NotebookDraft) -> Boolean,
-    onAssignCourse: suspend (String) -> Boolean,
+    onAssignCourse: suspend (String, String) -> Boolean,
     onUpdateNotebookAssignments: suspend (Long, String, Set<String>) -> Boolean = { _, _, _ -> false },
+    onCloseNotebook: suspend (Long) -> Boolean,
+    onSetNotebookReminders: suspend (Long, Boolean) -> Boolean,
     onStudentEntrySaved: suspend (StudentEntryDraft, Boolean) -> Boolean,
     onReviewEntry: suspend (Long, String) -> Boolean,
     onPhotoEdited: (Bitmap) -> Unit,
@@ -98,7 +100,10 @@ fun AuthScreens(
                 course = currentAccount?.course ?: SchoolCourses.DEFAULT_STUDENT_COURSE,
                 gender = currentAccount?.gender ?: UserGender.Other,
                 profilePhotoUri = profilePhotoUri,
-                notebooks = notebooks.filter { currentAccount == null || it.isAccessibleBy(currentAccount) },
+                notebooks = notebooks.filter { notebook ->
+                    currentAccount?.let { account -> notebook.isAccessibleBy(account) } == true
+                },
+                entries = studentEntries.filter { it.studentEmail.equals(currentAccount?.email, ignoreCase = true) },
                 holidays = holidays,
                 onLogout = onUserLoggedOut,
                 onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
@@ -106,12 +111,17 @@ fun AuthScreens(
                 onOpenHistory = { onDestinationChange(AuthDestination.StudentHistory) }
             )
             AuthDestination.StudentNotebook -> StudentNotebookDetail(
-                notebook = selectedNotebook,
+                notebook = selectedNotebook?.takeIf {
+                    currentAccount != null && it.isAccessibleBy(currentAccount)
+                },
                 onBack = { onDestinationChange(AuthDestination.StudentDashboard) },
                 onCreateEntry = onStartNewEntry
             )
             AuthDestination.StudentEntry -> StudentEntryForm(
-                initialEntry = editingEntry,
+                initialEntry = editingEntry?.takeIf {
+                    it.studentEmail.equals(currentAccount?.email, ignoreCase = true)
+                },
+                notebookPeriod = selectedNotebook?.periodLabel,
                 holidays = holidays,
                 onBack = {
                     onDestinationChange(
@@ -123,7 +133,7 @@ fun AuthScreens(
                 onSaved = { onDestinationChange(AuthDestination.StudentHistory) }
             )
             AuthDestination.StudentHistory -> StudentHistory(
-                entries = studentEntries,
+                entries = studentEntries.filter { it.studentEmail.equals(currentAccount?.email, ignoreCase = true) },
                 onEditDraft = onEditDraftEntry,
                 onBack = { onDestinationChange(AuthDestination.StudentDashboard) }
             )
@@ -133,21 +143,33 @@ fun AuthScreens(
                 gender = currentAccount?.gender ?: UserGender.Other,
                 profilePhotoUri = profilePhotoUri,
                 assignedCourse = currentAccount?.assignedCourse,
+                assignedSubject = currentAccount?.assignedSubject,
                 availableCourses = SchoolCourses.STUDENT_COURSES,
-                notebooks = notebooks.filter { it.teacherEmail == currentAccount?.email },
+                notebooks = notebooks.filter { it.teacherEmail.equals(currentAccount?.email, ignoreCase = true) &&
+                    it.course == currentAccount?.assignedCourse && it.subject == currentAccount?.assignedSubject },
                 availableStudents = availableStudents,
-                submittedEntries = teacherEntries,
+                submittedEntries = teacherEntries.filter { entry ->
+                    notebooks.any { notebook ->
+                        notebook.id == entry.notebookId &&
+                            notebook.teacherEmail.equals(currentAccount?.email, ignoreCase = true) &&
+                            notebook.course == currentAccount?.assignedCourse &&
+                            notebook.subject == currentAccount?.assignedSubject
+                    }
+                },
                 holidays = holidays,
                 onLogout = onUserLoggedOut,
                 onOpenProfile = { onDestinationChange(AuthDestination.Profile) },
                 onCreateNotebook = { onDestinationChange(AuthDestination.TeacherCreateNotebook) },
                 onAssignCourse = onAssignCourse,
                 onUpdateNotebookAssignments = onUpdateNotebookAssignments,
+                onCloseNotebook = onCloseNotebook,
+                onSetNotebookReminders = onSetNotebookReminders,
                 onReviewEntry = onReviewEntry
             )
             AuthDestination.TeacherCreateNotebook -> TeacherCreateNotebook(
                 availableStudents = availableStudents,
                 teacherCourse = currentAccount?.assignedCourse,
+                teacherSubject = currentAccount?.assignedSubject,
                 onBack = { onDestinationChange(AuthDestination.TeacherDashboard) },
                 onPublish = onNotebookPublished,
                 onPublished = { onDestinationChange(AuthDestination.TeacherDashboard) }

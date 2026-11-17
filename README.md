@@ -1,6 +1,8 @@
 # Bitácora para docentes y estudiantes
 
-Aplicación móvil Android para registrar y revisar el aprendizaje de estudiantes de enseñanza media mediante bitácoras por curso.
+Aplicación móvil Android para registrar y revisar el aprendizaje de estudiantes ficticios de 5.º a 8.º básico mediante bitácoras mensuales por curso y asignatura.
+
+> **Etapa actual: MVP Android en Room.** La integración con MySQL / Spring Boot se realizará en una etapa posterior. Los datos de prueba se guardan **solo en el dispositivo**, por lo que no se comparten automáticamente con otros teléfonos. Esto permite validar el flujo de la aplicación, pero aún no satisface la privacidad ni la sincronización de un sistema centralizado entre dispositivos.
 
 ## Estado actual
 
@@ -13,9 +15,13 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 - Sesión activa persistente y restauración automática del dashboard correspondiente.
 - Fotos de perfil recortables, guardadas localmente en formato cuadrado de 64 × 64 píxeles.
 - Dashboard de estudiante con las bitácoras publicadas y detalle persistente.
-- Registros de clase enviados o guardados como borrador en Spring Boot/MySQL, con copia local en Room, historial persistente y opción de editar/enviar borradores.
+- Registros de clase enviados o guardados como borrador en Room, historial persistente y opción de editar/enviar borradores.
 - Dashboard docente con listado, creación persistente de bitácoras y sistema de revisión/retroalimentación de registros enviados.
-- Conexión con microservicio Spring Boot (`http://10.0.2.2:8080`) para bitácoras, registros y revisiones, con copia local en Room.
+- Bitácoras por mes, año, curso y asignatura, con cierre mensual y bloqueo de nuevas entregas tras el cierre.
+- Evidencias de clase: fotos, documentos de hasta 10 MB y enlaces HTTP/HTTPS; los archivos se conservan como URI locales con permiso de lectura.
+- Indicadores por bitácora (estudiantes con/sin participación, entregas pendientes y revisadas), filtros de entregas por estudiante/fecha/estado e informe PDF mensual.
+- Recordatorios internos de cierre, siguiente mes y semestre, activables por bitácora.
+- El cliente de Spring Boot existe en el proyecto, pero su integración con el nuevo modelo se deja para la siguiente etapa.
 - Consumo de API externa de Feriados de Chile (`https://date.nager.at/api/v3/PublicHolidays/{year}/CL`) para el calendario escolar y validación contextual de fechas de clase.
 - Configuración de firma de APK release (`signingConfigs`) mediante `keystore.properties`.
 - Estados de carga, validaciones y mensajes de confirmación en las acciones principales.
@@ -75,9 +81,9 @@ El APK de desarrollo se genera en:
 
 El informe de cobertura se genera en `app/build/reports/coverage/test/debug/index.html`.
 
-## Backend Spring Boot y API Externa (Evaluación Parcial 4 / EFT)
+## Backend Spring Boot y API externa (siguiente etapa)
 
-El backend usado por la app está en el repositorio hermano `GitHub/Backend-Aplicaciones-moviles-pablo-Salandra/pablo-salandra-backend`. Requiere JDK 21 y MySQL local. Desde esa carpeta:
+El backend que se integrará posteriormente está en el repositorio hermano `jesunixtux/pablo-salandra-backend`. Requiere JDK 21 y MySQL local. Desde esa carpeta:
 
 ```bash
 ./MYSQL-Local/start-mysql.sh
@@ -85,9 +91,9 @@ El backend usado por la app está en el repositorio hermano `GitHub/Backend-Apli
 ./gradlew bootRun
 ```
 
-El servidor escucha en `127.0.0.1:8080`, accesible desde el emulador Android en `http://10.0.2.2:8080`. La URL del cliente se cambia en `SchoolBackend.BASE_URL`, dentro de `data/remote/NotebookRemoteDataSource.kt`. La URL y credenciales de MySQL se cambian en `src/main/resources/application.properties` del backend. Inicia únicamente este servidor en el puerto 8080; `backend/` dentro de este repositorio es una implementación anterior con H2.
+**Pendiente para la siguiente etapa:** unificar el puerto y la URL real del servidor, trasladar los nuevos campos mensuales y las evidencias, subir los archivos y aplicar autenticación/autorización en cada endpoint. La URL histórica del cliente se encuentra en `SchoolBackend.BASE_URL`, dentro de `data/remote/NotebookRemoteDataSource.kt`. `backend/` dentro de este repositorio es una implementación anterior con H2.
 
-- **Sincronización (Room + Spring Boot):** los repositorios actualizan las copias locales al iniciar sesión. Publicar bitácoras, asignar estudiantes, guardar registros y revisar entregas requiere que Spring Boot y MySQL estén encendidos. Si no hay conexión, se pueden consultar los datos ya sincronizados.
+- **Persistencia actual (Room):** publicar bitácoras, asignar estudiantes, guardar registros, revisar entregas y exportar informes funciona localmente sin Spring Boot. El cliente remoto queda inactivo hasta adaptar el backend.
 - **Consumo de API externa con Retrofit:** `HolidayRemoteDataSource` consulta los feriados de Chile en `https://date.nager.at/api/v3/PublicHolidays/{year}/CL` (con respaldo local offline), mostrándolos en los paneles de docente/estudiante y avisando en el formulario cuando la fecha de clase coincide con un feriado.
 
 ## Generación de APK firmado (Release)
@@ -167,6 +173,18 @@ La aplicación inicia sin usuarios ni bitácoras precargadas. Todas las cuentas 
 ```bash
 adb shell pm clear cl.duoc.coegio_pablo_saladana
 ```
+
+### Prueba manual del mínimo del caso DSY1105 (etapa Android)
+
+1. Crear cuentas **ficticias**: un docente y al menos dos estudiantes del mismo curso de 5.º a 8.º básico.
+2. Iniciar como docente, asignar curso y asignatura, y crear la bitácora del mes actual con título, propósito, instrucciones y preguntas.
+3. Iniciar como el primer estudiante, añadir un registro de clase, adjuntar una foto o archivo menor de 10 MB, añadir un enlace, guardarlo como borrador, editarlo y enviarlo.
+4. Iniciar como el segundo estudiante y comprobar que no ve los aportes del primero.
+5. Iniciar como docente, comprobar que aparece un estudiante sin participación, filtrar registros, añadir retroalimentación y marcar el aporte como revisado.
+6. Descargar el informe mensual en PDF, abrirlo y comprobar que incluye cifras de participación y aportes.
+7. Cerrar la bitácora, regresar como estudiante y comprobar que el historial sigue visible pero que ya no es posible enviar nuevos registros.
+
+**Por comprobar en Android Studio:** compilación, apertura de los selectores de archivos, permisos persistentes del dispositivo, funcionamiento del PDF y migración Room 9 → 10. La persistencia entre dispositivos, transferencia de evidencias y autorización del servidor son tareas de la futura integración con Spring Boot/MySQL.
 
 ## Lista de pruebas de autenticación y SQLite
 
