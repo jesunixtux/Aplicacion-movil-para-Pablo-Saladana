@@ -26,7 +26,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -63,6 +65,8 @@ fun ProfileScreen(
     role: UserRole,
     course: String = SchoolCourses.DEFAULT_STUDENT_COURSE,
     photoUri: Uri?,
+    darkMode: Boolean = false,
+    onToggleDarkMode: () -> Unit = {},
     onBack: () -> Unit,
     onPhotoEdited: (Bitmap) -> Unit,
     onLogout: () -> Unit
@@ -216,6 +220,18 @@ fun ProfileScreen(
                         )
                     }
                 }
+            }
+            OutlinedButton(
+                onClick = onToggleDarkMode,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    if (darkMode) Icons.Default.LightMode else Icons.Default.DarkMode,
+                    contentDescription = null
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(if (darkMode) "Cambiar a modo claro" else "Cambiar a modo oscuro")
             }
             Button(
                 onClick = onLogout,

@@ -19,7 +19,9 @@ private val DarkColorScheme = darkColorScheme(
     onTertiary = BitacoraColors.OnTertiaryDark,
     background = BitacoraColors.BackgroundDark,
     surface = BitacoraColors.SurfaceDark,
-    onSurface = BitacoraColors.OnSurfaceDark
+    onSurface = BitacoraColors.OnSurfaceDark,
+    error = BitacoraColors.ErrorDark,
+    onError = BitacoraColors.OnErrorDark
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -31,7 +33,9 @@ private val LightColorScheme = lightColorScheme(
     onTertiary = BitacoraColors.OnTertiaryLight,
     background = BitacoraColors.BackgroundLight,
     surface = BitacoraColors.SurfaceLight,
-    onSurface = BitacoraColors.OnSurfaceLight
+    onSurface = BitacoraColors.OnSurfaceLight,
+    error = BitacoraColors.ErrorLight,
+    onError = BitacoraColors.OnErrorLight
 )
 
 /** Aplica la paleta Material 3 de Bitácora según el modo claro u oscuro del dispositivo. */

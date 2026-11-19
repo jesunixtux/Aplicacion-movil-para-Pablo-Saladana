@@ -1,4 +1,4 @@
-package cl.duoc.coegio_pablo_saladana
+package cl.duoc.coegio_pablo_saladana.tests
 
 import cl.duoc.coegio_pablo_saladana.data.local.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.domain.model.NotebookDraft

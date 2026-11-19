@@ -5,8 +5,12 @@ import androidx.compose.ui.graphics.Color
 /**
  * Paleta central de Bitácora.
  *
- * Para cambiar el color global de los botones principales, edita [PrimaryLight].
- * El texto que aparece sobre ellos se define con [OnPrimaryLight].
+ * Para cambiar el color global de los botones principales, edita [PrimaryLight]
+ * (o [PrimaryDark] en modo oscuro). El texto sobre ellos: [OnPrimaryLight].
+ *
+ * Para cambiar el color de los mensajes y bordes de error, edita [ErrorLight]
+ * (o [ErrorDark] en modo oscuro). Todas las pantallas usan
+ * `MaterialTheme.colorScheme.error`, así que basta cambiar este valor.
  *
  * El formato es 0xAARRGGBB: `FF` significa completamente opaco y los últimos
  * seis dígitos son el color hexadecimal habitual. Ejemplo: azul `#1565C0` es
@@ -26,6 +30,9 @@ object BitacoraColors {
     val BackgroundLight = Color(0xFFFFFBFE)
     val SurfaceLight = Color(0xFFFFFBFE)
     val OnSurfaceLight = Color(0xFF1C1B1F)
+    // Errores: mensajes, bordes de campos inválidos y avisos.
+    val ErrorLight = Color(0xFFB3261E)
+    val OnErrorLight = Color.White
 
     // Tema oscuro: se muestra cuando el dispositivo usa modo oscuro.
     val PrimaryDark = Color(0xFFD0BCFF)
@@ -37,4 +44,6 @@ object BitacoraColors {
     val BackgroundDark = Color(0xFF1C1B1F)
     val SurfaceDark = Color(0xFF1C1B1F)
     val OnSurfaceDark = Color(0xFFE6E1E5)
+    val ErrorDark = Color(0xFFF2B8B5)
+    val OnErrorDark = Color(0xFF601410)
 }

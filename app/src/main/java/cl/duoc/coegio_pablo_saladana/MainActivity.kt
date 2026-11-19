@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.LocalOverscrollFactory
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberPlatformOverscrollFactory
@@ -58,8 +59,16 @@ class MainActivity : ComponentActivity() {
             )
         )[AppViewModel::class.java]
 
+        val themePrefs = getSharedPreferences("theme", MODE_PRIVATE)
         setContent {
-            CoegioPabloSaladanaTheme {
+            // null = seguir el modo del sistema; la elección manual se guarda y sobrevive reinicios.
+            var darkModeOverride by rememberSaveable {
+                mutableStateOf(
+                    if (themePrefs.contains("dark_mode")) themePrefs.getBoolean("dark_mode", false) else null
+                )
+            }
+            val darkMode = darkModeOverride ?: isSystemInDarkTheme()
+            CoegioPabloSaladanaTheme(darkTheme = darkMode) {
                 val overscrollFactory = rememberPlatformOverscrollFactory(
                     glowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                 )
@@ -111,6 +120,11 @@ class MainActivity : ComponentActivity() {
                                 teacherEntries = state.teacherEntries,
                                 holidays = state.holidays,
                                 profilePhotoUri = state.profilePhotoUri,
+                                darkMode = darkMode,
+                                onToggleDarkMode = {
+                                    darkModeOverride = !darkMode
+                                    themePrefs.edit().putBoolean("dark_mode", !darkMode).apply()
+                                },
                                 onDestinationChange = appViewModel::navigateTo,
                                 onUserLoggedIn = appViewModel::onUserLoggedIn,
                                 onNotebookSelected = appViewModel::onNotebookSelected,

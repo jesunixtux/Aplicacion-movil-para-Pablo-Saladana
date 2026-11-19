@@ -63,6 +63,8 @@ fun AuthScreens(
     teacherEntries: List<StudentEntryEntity>,
     holidays: List<ChileanHoliday>,
     profilePhotoUri: Uri?,
+    darkMode: Boolean = false,
+    onToggleDarkMode: () -> Unit = {},
     onDestinationChange: (AuthDestination) -> Unit,
     onUserLoggedIn: (UserAccount) -> Unit,
     onNotebookSelected: (NotebookEntity) -> Unit,
@@ -180,6 +182,8 @@ fun AuthScreens(
                 role = currentAccount?.role ?: UserRole.Student,
                 course = currentAccount?.course ?: SchoolCourses.DEFAULT_STUDENT_COURSE,
                 photoUri = profilePhotoUri,
+                darkMode = darkMode,
+                onToggleDarkMode = onToggleDarkMode,
                 onBack = {
                     onDestinationChange(
                         if (currentAccount?.role == UserRole.Teacher) {

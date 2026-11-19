@@ -1,4 +1,4 @@
-package cl.duoc.coegio_pablo_saladana
+package cl.duoc.coegio_pablo_saladana.tests
 
 import cl.duoc.coegio_pablo_saladana.data.local.PasswordHasher
 import java.nio.charset.StandardCharsets
@@ -38,5 +38,38 @@ class PasswordHasherTest {
         assertFalse(PasswordHasher.verify("clave", "pbkdf2:sha256:999999999:00:00"))
         assertFalse(PasswordHasher.verify("clave", "pbkdf2:sha256:600000:xx:yy"))
         assertFalse(PasswordHasher.verify("clave", "hash-desconocido"))
+    }
+
+    @Test
+    fun emptyAndUnicodePasswordsRoundTrip() {
+        val empty = PasswordHasher.create("")
+        assertTrue(PasswordHasher.verify("", empty))
+        assertFalse(PasswordHasher.verify("x", empty))
+
+        val unicode = PasswordHasher.create("Clave ñandú 🔑")
+        assertTrue(PasswordHasher.verify("Clave ñandú 🔑", unicode))
+        assertFalse(PasswordHasher.verify("Clave nandu", unicode))
+    }
+
+    @Test
+    fun storedHashStructureIsValidatedBeforeDeriving() {
+        val salt = "00".repeat(16)
+        val hash = "00".repeat(32)
+        assertFalse(PasswordHasher.verify("clave", "pbkdf2:sha256:0:$salt:$hash"))
+        assertFalse(PasswordHasher.verify("clave", "pbkdf2:sha256:2000001:$salt:$hash"))
+        assertFalse(PasswordHasher.verify("clave", "pbkdf2:md5:600000:$salt:$hash"))
+        assertFalse(PasswordHasher.verify("clave", "pbkdf2:sha256:600000:${"0".repeat(31)}:$hash"))
+        assertFalse(PasswordHasher.verify("clave", "pbkdf2:sha256:600000:$salt:${"0".repeat(62)}"))
+        assertFalse(PasswordHasher.verify("clave", "pbkdf2:sha256:600000:$salt"))
+    }
+
+    @Test
+    fun legacyDetectionRequiresExactlySixtyFourHexCharacters() {
+        assertTrue(PasswordHasher.isLegacyHash("a".repeat(64)))
+        assertTrue(PasswordHasher.isLegacyHash("ABCDEF0123456789".repeat(4)))
+        assertFalse(PasswordHasher.isLegacyHash("a".repeat(63)))
+        assertFalse(PasswordHasher.isLegacyHash("a".repeat(65)))
+        assertFalse(PasswordHasher.isLegacyHash("g".repeat(64)))
+        assertFalse(PasswordHasher.isLegacyHash(""))
     }
 }
