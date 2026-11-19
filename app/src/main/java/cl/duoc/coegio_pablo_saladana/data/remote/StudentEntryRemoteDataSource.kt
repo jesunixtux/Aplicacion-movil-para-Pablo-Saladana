@@ -53,28 +53,50 @@ internal data class StudentEntryInput(
 )
 
 internal object StudentEntryRemoteDataSource {
-    suspend fun fetchByStudent(email: String): List<StudentEntryPayload>? = runCatching {
-        SchoolBackend.api.entries(studentEmail = email)
-    }.getOrNull()
+    /** Motivo del último fallo con el backend; null si la última llamada fue exitosa. */
+    var lastError: String? = null
+        private set
 
-    suspend fun fetchByTeacher(email: String): List<StudentEntryPayload>? = runCatching {
-        SchoolBackend.api.entries(teacherEmail = email)
-    }.getOrNull()
+    suspend fun fetchByStudent(email: String): List<StudentEntryPayload>? {
+        lastError = null
+        return runCatching {
+            SchoolBackend.api.entries(studentEmail = email)
+        }.onFailure { lastError = backendMessage(it) }.getOrNull()
+    }
+
+    suspend fun fetchByTeacher(email: String): List<StudentEntryPayload>? {
+        lastError = null
+        return runCatching {
+            SchoolBackend.api.entries(teacherEmail = email)
+        }.onFailure { lastError = backendMessage(it) }.getOrNull()
+    }
 
     suspend fun create(entry: StudentEntryEntity, notebook: NotebookEntity): StudentEntryPayload? {
-        val remoteNotebookId = notebook.remoteId ?: return null
+        lastError = null
+        val remoteNotebookId = notebook.remoteId ?: run {
+            lastError = "La bitácora no existe en el servidor; no se puede enviar el registro."
+            return null
+        }
         return runCatching {
             SchoolBackend.api.createEntry(input(entry, remoteNotebookId))
-        }.getOrNull()
+        }.onFailure { lastError = backendMessage(it) }.getOrNull()
     }
 
     suspend fun update(entry: StudentEntryEntity, notebook: NotebookEntity): StudentEntryPayload? {
+        lastError = null
         val remoteId = entry.remoteId ?: return create(entry, notebook)
-        val remoteNotebookId = notebook.remoteId ?: return null
+        val remoteNotebookId = notebook.remoteId ?: run {
+            lastError = "La bitácora no existe en el servidor; no se puede actualizar el registro."
+            return null
+        }
         return runCatching {
             SchoolBackend.api.updateEntry(remoteId, input(entry, remoteNotebookId))
-        }.getOrNull()
+        }.onFailure { lastError = backendMessage(it) }.getOrNull()
     }
+
+    private fun backendMessage(error: Throwable): String =
+        "Error del backend de registros (http://10.0.2.2:8080). " +
+            cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.describe(error)
 
     private fun input(entry: StudentEntryEntity, notebookId: Long) = StudentEntryInput(
         notebookId, entry.notebookTitle, entry.studentEmail, entry.studentName,

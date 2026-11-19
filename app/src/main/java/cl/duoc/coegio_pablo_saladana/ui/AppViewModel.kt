@@ -15,6 +15,7 @@ import cl.duoc.coegio_pablo_saladana.data.remote.HolidayRemoteDataSource
 import cl.duoc.coegio_pablo_saladana.data.repository.NotebookRepository
 import cl.duoc.coegio_pablo_saladana.data.repository.StudentEntryRepository
 import cl.duoc.coegio_pablo_saladana.data.repository.UserRepository
+import cl.duoc.coegio_pablo_saladana.domain.error.AppErrors
 import cl.duoc.coegio_pablo_saladana.domain.model.NotebookDraft
 import cl.duoc.coegio_pablo_saladana.domain.model.StudentEntryDraft
 import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
@@ -91,7 +92,10 @@ class AppViewModel(
                 notebooks = syncedNotebooks,
                 holidays = fetchedHolidays,
                 studentEntries = syncedStudentEntries,
-                teacherEntries = syncedTeacherEntries
+                teacherEntries = syncedTeacherEntries,
+                syncWarning = HolidayRemoteDataSource.lastError?.let {
+                    "$it Se muestra el calendario chileno sin conexión."
+                }
             )
         }
     }
@@ -173,53 +177,57 @@ class AppViewModel(
         )
     }
 
-    suspend fun publishNotebook(draft: NotebookDraft): Boolean {
-        val teacher = uiState.currentAccount ?: return false
-        val created = notebookRepository.create(draft, teacher) ?: return false
+    /** Devuelve null si la bitácora se publicó, o el motivo específico del fallo. */
+    suspend fun publishNotebook(draft: NotebookDraft): String? {
+        val teacher = uiState.currentAccount ?: return AppErrors.NOT_LOGGED_IN
+        val created = notebookRepository.create(draft, teacher)
+            ?: return notebookRepository.lastError ?: "No se pudo publicar la bitácora."
         uiState = uiState.copy(notebooks = listOf(created) + uiState.notebooks)
-        return true
+        return null
     }
 
     suspend fun updateNotebookAssignments(
         notebookId: Long,
         course: String,
         studentEmails: Set<String>
-    ): Boolean {
-        val teacher = uiState.currentAccount ?: return false
+    ): String? {
+        val teacher = uiState.currentAccount ?: return AppErrors.NOT_LOGGED_IN
         val updated = notebookRepository.updateAssignments(
             notebookId = notebookId,
             teacher = teacher,
             course = course,
             studentEmails = studentEmails
-        ) ?: return false
+        ) ?: return notebookRepository.lastError ?: "No se pudo actualizar la asignación de estudiantes."
         uiState = uiState.copy(
             notebooks = uiState.notebooks.map {
                 if (it.id == updated.id) updated else it
             }
         )
-        return true
+        return null
     }
 
-    suspend fun closeNotebook(notebookId: Long): Boolean {
-        val teacher = uiState.currentAccount ?: return false
-        val updated = notebookRepository.close(notebookId, teacher) ?: return false
+    suspend fun closeNotebook(notebookId: Long): String? {
+        val teacher = uiState.currentAccount ?: return AppErrors.NOT_LOGGED_IN
+        val updated = notebookRepository.close(notebookId, teacher)
+            ?: return notebookRepository.lastError ?: "No se pudo cerrar la bitácora."
         uiState = uiState.copy(notebooks = uiState.notebooks.map {
             if (it.id == updated.id) updated else it
         })
-        return true
+        return null
     }
 
-    suspend fun setNotebookReminders(notebookId: Long, enabled: Boolean): Boolean {
-        val teacher = uiState.currentAccount ?: return false
-        val updated = notebookRepository.setRemindersEnabled(notebookId, teacher, enabled) ?: return false
+    suspend fun setNotebookReminders(notebookId: Long, enabled: Boolean): String? {
+        val teacher = uiState.currentAccount ?: return AppErrors.NOT_LOGGED_IN
+        val updated = notebookRepository.setRemindersEnabled(notebookId, teacher, enabled)
+            ?: return notebookRepository.lastError ?: "No se pudo cambiar el recordatorio."
         uiState = uiState.copy(notebooks = uiState.notebooks.map {
             if (it.id == updated.id) updated else it
         })
-        return true
+        return null
     }
 
-    suspend fun saveStudentEntry(draft: StudentEntryDraft, isDraft: Boolean): Boolean {
-        val student = uiState.currentAccount ?: return false
+    suspend fun saveStudentEntry(draft: StudentEntryDraft, isDraft: Boolean): String? {
+        val student = uiState.currentAccount ?: return AppErrors.NOT_LOGGED_IN
         val existingDraft = uiState.editingEntry
         val notebook = uiState.selectedNotebook
         val savedEntry = when {
@@ -227,8 +235,8 @@ class AppViewModel(
                 studentEntryRepository.updateDraft(existingDraft.id, draft, isDraft, student)
             notebook != null ->
                 studentEntryRepository.create(draft, isDraft, student, notebook)
-            else -> null
-        } ?: return false
+            else -> return "No se encontró la bitácora del registro. Vuelve al panel y ábrela de nuevo."
+        } ?: return studentEntryRepository.lastError ?: "No se pudo guardar el registro."
 
         val updatedList = if (existingDraft != null) {
             uiState.studentEntries.map { if (it.id == savedEntry.id) savedEntry else it }
@@ -239,18 +247,19 @@ class AppViewModel(
             studentEntries = updatedList,
             editingEntryId = null
         )
-        return true
+        return null
     }
 
-    suspend fun reviewEntry(entryId: Long, feedback: String): Boolean {
-        val teacher = uiState.currentAccount ?: return false
-        val updated = studentEntryRepository.markReviewed(entryId, teacher, feedback) ?: return false
+    suspend fun reviewEntry(entryId: Long, feedback: String): String? {
+        val teacher = uiState.currentAccount ?: return AppErrors.NOT_LOGGED_IN
+        val updated = studentEntryRepository.markReviewed(entryId, teacher, feedback)
+            ?: return studentEntryRepository.lastError ?: "No se pudo marcar el registro como revisado."
         uiState = uiState.copy(
             teacherEntries = uiState.teacherEntries.map {
                 if (it.id == updated.id) updated else it
             }
         )
-        return true
+        return null
     }
 
     fun updateProfilePhoto(bitmap: Bitmap) {
@@ -259,23 +268,29 @@ class AppViewModel(
             val savedUri = withContext(Dispatchers.IO) {
                 profilePhotoStorage.save(account.email, bitmap)
             }
-            if (savedUri != null) {
-                uiState = uiState.copy(profilePhotoUri = savedUri)
+            uiState = if (savedUri != null) {
+                uiState.copy(profilePhotoUri = savedUri, profilePhotoError = null)
+            } else {
+                uiState.copy(
+                    profilePhotoError = profilePhotoStorage.lastError
+                        ?: "No se pudo guardar la foto de perfil."
+                )
             }
         }
     }
 
-    suspend fun assignCourse(course: String, subject: String): Boolean {
-        val teacher = uiState.currentAccount ?: return false
-        if (teacher.role != UserRole.Teacher) return false
-        if (teacher.assignedCourse != null) return false
+    suspend fun assignCourse(course: String, subject: String): String? {
+        val teacher = uiState.currentAccount ?: return AppErrors.NOT_LOGGED_IN
+        if (teacher.role != UserRole.Teacher) return "Solo los docentes pueden tomar un curso."
+        if (teacher.assignedCourse != null) return "Ya tienes un curso asignado; no puedes tomar otro."
         val success = userRepository.assignCourseToTeacher(teacher.email, course, subject)
         if (success) {
             val updatedAccount = teacher.copy(assignedCourse = course, assignedSubject = subject)
             userRepository.saveSession(updatedAccount)
             uiState = uiState.copy(currentAccount = updatedAccount)
+            return null
         }
-        return success
+        return userRepository.lastError ?: "No se pudo asignar el curso."
     }
 
     fun logout() {
@@ -287,6 +302,8 @@ class AppViewModel(
             studentEntries = emptyList(),
             teacherEntries = emptyList(),
             profilePhotoUri = null,
+            profilePhotoError = null,
+            syncWarning = null,
             destination = AuthDestination.Welcome
         )
     }

@@ -11,11 +11,16 @@ import java.security.MessageDigest
 class ProfilePhotoStorage(context: Context) {
     private val directory = File(context.filesDir, "profile_photos").apply { mkdirs() }
 
+    /** Motivo específico del último fallo al guardar; null si todo salió bien. */
+    var lastError: String? = null
+        private set
+
     fun uriFor(email: String): Uri? {
         return photoFile(email).takeIf(File::exists)?.also(::normalizeExisting)?.let(::versionedUri)
     }
 
     fun save(email: String, bitmap: Bitmap): Uri? {
+        lastError = null
         return runCatching {
             val file = photoFile(email)
             val normalizedBitmap = normalize(bitmap)
@@ -23,6 +28,9 @@ class ProfilePhotoStorage(context: Context) {
                 check(normalizedBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, outputStream))
             }
             versionedUri(file, System.nanoTime().toString())
+        }.onFailure {
+            lastError = "No se pudo guardar la foto de perfil. " +
+                cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.describe(it)
         }.getOrNull()
     }
 

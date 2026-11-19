@@ -99,20 +99,38 @@ internal object SchoolBackend {
 object NotebookRemoteDataSource {
     private val gson = Gson()
 
-    suspend fun fetchAll(): List<NotebookEntity>? = runCatching {
-        SchoolBackend.api.notebooks().mapNotNull(NotebookPayload::toEntity)
-    }.getOrNull()
+    /** Motivo del último fallo con el backend; null si la última llamada fue exitosa. */
+    var lastError: String? = null
+        private set
 
-    suspend fun create(draft: NotebookDraft, teacher: UserAccount): NotebookEntity? = runCatching {
-        SchoolBackend.api.createNotebook(input(draft, teacher.email, teacher.fullName)).toEntity()
-    }.getOrNull()
+    suspend fun fetchAll(): List<NotebookEntity>? {
+        lastError = null
+        return runCatching {
+            SchoolBackend.api.notebooks().mapNotNull(NotebookPayload::toEntity)
+        }.onFailure { lastError = backendMessage(it) }.getOrNull()
+    }
+
+    suspend fun create(draft: NotebookDraft, teacher: UserAccount): NotebookEntity? {
+        lastError = null
+        return runCatching {
+            SchoolBackend.api.createNotebook(input(draft, teacher.email, teacher.fullName)).toEntity()
+        }.onFailure { lastError = backendMessage(it) }.getOrNull()
+    }
 
     suspend fun update(notebook: NotebookEntity): NotebookEntity? {
-        val remoteId = notebook.remoteId ?: return null
+        lastError = null
+        val remoteId = notebook.remoteId ?: run {
+            lastError = "La bitácora no tiene identificador remoto; no se puede actualizar en el servidor."
+            return null
+        }
         return runCatching {
             SchoolBackend.api.updateNotebook(remoteId, input(notebook)).toEntity()
-        }.getOrNull()
+        }.onFailure { lastError = backendMessage(it) }.getOrNull()
     }
+
+    private fun backendMessage(error: Throwable): String =
+        "Error del backend de bitácoras (http://10.0.2.2:8080). " +
+            cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.describe(error)
 
     private fun input(draft: NotebookDraft, teacherEmail: String, teacherName: String): NotebookInput {
         val normalized = draft.normalized()

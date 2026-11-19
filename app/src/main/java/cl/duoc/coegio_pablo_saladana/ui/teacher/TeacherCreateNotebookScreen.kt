@@ -50,7 +50,7 @@ fun TeacherCreateNotebook(
     teacherCourse: String?,
     teacherSubject: String?,
     onBack: () -> Unit,
-    onPublish: suspend (NotebookDraft) -> Boolean,
+    onPublish: suspend (NotebookDraft) -> String?,
     onPublished: () -> Unit
 ) {
     val context = LocalContext.current

@@ -22,6 +22,10 @@ private interface HolidayApi {
 
 /** Consume la API externa Nager.Date para feriados de Chile con respaldo local. */
 object HolidayRemoteDataSource {
+    /** Motivo del último fallo de la API de feriados; null si respondió bien. */
+    var lastError: String? = null
+        private set
+
     private val api = Retrofit.Builder()
         .baseUrl("https://date.nager.at/")
         .client(okhttp3.OkHttpClient.Builder()
@@ -32,9 +36,16 @@ object HolidayRemoteDataSource {
         .build()
         .create(HolidayApi::class.java)
 
-    suspend fun fetchHolidays(year: Int = currentYear()): List<ChileanHoliday> =
-        runCatching { api.forYear(year).mapNotNull(HolidayPayload::toHoliday) }
-            .getOrNull()?.ifEmpty { fallbackHolidays(year) } ?: fallbackHolidays(year)
+    suspend fun fetchHolidays(year: Int = currentYear()): List<ChileanHoliday> {
+        lastError = null
+        val fetched = runCatching { api.forYear(year).mapNotNull(HolidayPayload::toHoliday) }
+            .onFailure {
+                lastError = "No se pudo consultar la API de feriados (date.nager.at). " +
+                    cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.describe(it)
+            }
+            .getOrNull()
+        return fetched?.ifEmpty { fallbackHolidays(year) } ?: fallbackHolidays(year)
+    }
 
     internal fun parseHolidays(json: String): List<ChileanHoliday> {
         val type = object : TypeToken<List<HolidayPayload>>() {}.type

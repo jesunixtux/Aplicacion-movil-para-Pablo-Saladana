@@ -52,7 +52,7 @@ class TeacherNotebookViewModel : ViewModel() {
     }
 
     fun publish(
-        onPublish: suspend (NotebookDraft) -> Boolean,
+        onPublish: suspend (NotebookDraft) -> String?,
         onPublished: () -> Unit
     ) {
         publishDraft(currentDraft(uiState), onPublish, onPublished)
@@ -61,7 +61,7 @@ class TeacherNotebookViewModel : ViewModel() {
     fun publishWithCourse(
         course: String,
         subject: String,
-        onPublish: suspend (NotebookDraft) -> Boolean,
+        onPublish: suspend (NotebookDraft) -> String?,
         onPublished: () -> Unit
     ) {
         val draft = currentDraft(uiState).copy(course = course, subject = subject)
@@ -70,7 +70,7 @@ class TeacherNotebookViewModel : ViewModel() {
 
     private fun publishDraft(
         draft: NotebookDraft,
-        onPublish: suspend (NotebookDraft) -> Boolean,
+        onPublish: suspend (NotebookDraft) -> String?,
         onPublished: () -> Unit
     ) {
         val errors = NotebookValidator.validate(draft)
@@ -81,15 +81,13 @@ class TeacherNotebookViewModel : ViewModel() {
         }
         viewModelScope.launch {
             uiState = uiState.copy(loading = true)
-            val published = onPublish(draft)
+            val publishError = onPublish(draft)
             uiState = uiState.copy(loading = false)
-            if (published) {
+            if (publishError == null) {
                 uiState = TeacherNotebookUiState()
                 onPublished()
             } else {
-                uiState = uiState.copy(
-                    message = "No se pudo publicar la bitácora. Inténtalo nuevamente."
-                )
+                uiState = uiState.copy(message = publishError)
             }
         }
     }

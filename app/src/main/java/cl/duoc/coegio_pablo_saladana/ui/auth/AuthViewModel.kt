@@ -67,7 +67,7 @@ class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
                 loginUiState = loginUiState.copy(
                     isLoading = false,
                     isError = true,
-                    message = "El correo o la contraseña no son correctos."
+                    message = userRepository.lastError ?: "El correo o la contraseña no son correctos."
                 )
             } else {
                 loginUiState = LoginUiState()
@@ -168,7 +168,7 @@ class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
                 registerUiState = registerUiState.copy(
                     isLoading = false,
                     isError = true,
-                    message = "Ya existe una cuenta con ese correo o RUT."
+                    message = userRepository.lastError ?: "Ya existe una cuenta con ese correo o RUT."
                 )
             }
         }

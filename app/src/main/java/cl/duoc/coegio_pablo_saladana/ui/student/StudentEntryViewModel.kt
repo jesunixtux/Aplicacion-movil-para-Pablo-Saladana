@@ -74,7 +74,7 @@ class StudentEntryViewModel(initialEntry: StudentEntryEntity? = null) : ViewMode
 
     fun saveEntry(
         isDraft: Boolean,
-        onSave: suspend (StudentEntryDraft, Boolean) -> Boolean,
+        onSave: suspend (StudentEntryDraft, Boolean) -> String?,
         onSaved: () -> Unit
     ) {
         val draft = currentDraft(uiState)
@@ -97,17 +97,15 @@ class StudentEntryViewModel(initialEntry: StudentEntryEntity? = null) : ViewMode
 
         viewModelScope.launch {
             uiState = uiState.copy(isLoading = true)
-            val saved = onSave(draft, isDraft)
+            val saveError = onSave(draft, isDraft)
             uiState = uiState.copy(isLoading = false)
-            if (saved) {
+            if (saveError == null) {
                 hasBoundInitialState = false
                 boundEntryId = null
                 uiState = createInitialState(null)
                 onSaved()
             } else {
-                uiState = uiState.copy(
-                    message = "No se pudo guardar el registro. Inténtalo nuevamente."
-                )
+                uiState = uiState.copy(message = saveError)
             }
         }
     }

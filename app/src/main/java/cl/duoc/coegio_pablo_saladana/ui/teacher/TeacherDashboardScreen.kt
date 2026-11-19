@@ -88,11 +88,11 @@ fun TeacherDashboard(
     onLogout: () -> Unit,
     onOpenProfile: () -> Unit,
     onCreateNotebook: () -> Unit,
-    onAssignCourse: suspend (String, String) -> Boolean,
-    onUpdateNotebookAssignments: suspend (Long, String, Set<String>) -> Boolean = { _, _, _ -> false },
-    onCloseNotebook: suspend (Long) -> Boolean,
-    onSetNotebookReminders: suspend (Long, Boolean) -> Boolean,
-    onReviewEntry: suspend (Long, String) -> Boolean
+    onAssignCourse: suspend (String, String) -> String?,
+    onUpdateNotebookAssignments: suspend (Long, String, Set<String>) -> String? = { _, _, _ -> null },
+    onCloseNotebook: suspend (Long) -> String?,
+    onSetNotebookReminders: suspend (Long, Boolean) -> String?,
+    onReviewEntry: suspend (Long, String) -> String?
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -124,7 +124,7 @@ fun TeacherDashboard(
             reportMessage = if (MonthlyReportWriter.write(
                 context.contentResolver, uri, notebook, studentList,
                 submittedEntries.filter { it.notebookId == notebook.id }
-            )) "Informe PDF guardado." else "No se pudo generar el PDF."
+            )) "Informe PDF guardado." else MonthlyReportWriter.lastError ?: "No se pudo generar el PDF."
         }
         exportingNotebookId = null
     }
@@ -401,7 +401,12 @@ fun TeacherDashboard(
                                 modifier = Modifier.fillMaxWidth()
                             ) { Text("Descargar informe mensual PDF") }
                             OutlinedButton(
-                                onClick = { scope.launch { onSetNotebookReminders(notebook.id, !notebook.remindersEnabled) } },
+                                onClick = {
+                                    scope.launch {
+                                        onSetNotebookReminders(notebook.id, !notebook.remindersEnabled)
+                                            ?.let { reportMessage = it }
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             ) { Text(if (notebook.remindersEnabled) "Desactivar recordatorios" else "Activar recordatorios") }
                             if (notebook.isOpen) {
@@ -505,7 +510,7 @@ fun TeacherDashboard(
                                 onClick = {
                                     scope.launch {
                                         isSavingReview = true
-                                        onReviewEntry(entry.id, feedbackText)
+                                        onReviewEntry(entry.id, feedbackText)?.let { reportMessage = it }
                                         isSavingReview = false
                                     }
                                 },
@@ -554,7 +559,7 @@ fun TeacherDashboard(
                         managingNotebook.id,
                         selectedCourse,
                         selectedStudentEmails
-                    )
+                    )?.let { reportMessage = it }
                     managingNotebookId = null
                 }
             }
@@ -567,9 +572,11 @@ fun TeacherDashboard(
             onDismiss = { showTakeCourseDialog = false },
             onConfirm = { course, subject ->
                 scope.launch {
-                    val success = onAssignCourse(course, subject)
-                    if (success) {
+                    val assignError = onAssignCourse(course, subject)
+                    if (assignError == null) {
                         showTakeCourseDialog = false
+                    } else {
+                        reportMessage = assignError
                     }
                 }
             }
@@ -584,7 +591,7 @@ fun TeacherDashboard(
                 TextButton(onClick = {
                     val id = closingNotebookId ?: return@TextButton
                     scope.launch {
-                        if (!onCloseNotebook(id)) reportMessage = "No se pudo cerrar la bitácora."
+                        onCloseNotebook(id)?.let { reportMessage = it }
                         closingNotebookId = null
                     }
                 }) { Text("Confirmar cierre") }
