@@ -242,3 +242,78 @@ errores, etc. **Ninguna prueba fue adulterada.**
   comportamiento Room v11 en dispositivo real.
 - **Integración pendiente (no activa):** login remoto, sincronización real, subida de
   evidencias, cuentas centralizadas en MySQL.
+
+---
+
+## 12. Revisión final sobre `main` (comparación con el backend real)
+
+Revisión realizada directamente sobre `main`, sin ramas ni PR. Backend consultado
+en modo lectura (`pablo-salandra-backend`: entidades, servicios, controladores y
+`application.properties`).
+
+### 12.1 Qué estaba correcto (verificado, sin cambios)
+- **DTOs completos**: `NotebookDto`/`StudentEntryDto` conservan todos los campos del
+  MVP; round-trip y compatibilidad legacy cubiertos por pruebas.
+- **Identificadores**: local (Room) y remoto (MySQL) nunca se confunden;
+  `toEntity` usa el id local de la bitácora y `remoteId` solo proviene del servidor.
+- **Evidencias**: `content://` jamás se serializa como URL compartible (prueba
+  explícita que inspecciona el JSON).
+- **Autenticación remota**: desactivada, sin tokens ficticios; el interceptor no
+  adjunta cabecera sin token real (probado).
+- **Room**: migración 10→11 exclusivamente aditiva; ningún registro local se modifica
+  ni elimina durante la preparación.
+- **Metadatos de sync**: todas las escrituras locales (crear, editar borrador, enviar,
+  cerrar, asignar, recordar, revisar) actualizan `updatedAt`.
+- **Errores de conexión**: se capturan y reportan vía `AppErrors`/`lastError` sin
+  perder datos locales.
+- **Compatibilidad de contrato verificada contra el backend real**:
+  - El parseo estricto de fecha del backend (`dd/MM/uuuu`, STRICT) coincide con
+    `StudentEntryValidator` (dd/MM/yyyy no lenient).
+  - `StudentEntryInput` de Android coincide campo a campo con el record del backend
+    (el backend deriva `teacherEmail` desde la bitácora; Android no lo envía). ✔
+  - El backend normaliza correos a minúsculas y curso en blanco → "General", igual
+    que los mapeos Android.
+
+### 12.2 Problemas encontrados y corregidos en Android
+1. **Puerto por defecto incorrecto (confirmado)**: `application.properties` del
+   backend define `server.port= 8090`, pero Android asumía `http://10.0.2.2:8080/`.
+   Corregido el default de `BuildConfig.API_BASE_URL` a `http://10.0.2.2:8090/`
+   (sobrescribible con `-PapiBaseUrl`). Las dos pruebas que fijaban la URL por
+   defecto se actualizaron al nuevo valor correcto (no se alteró ninguna aserción
+   de comportamiento).
+2. **Duplicación de mapeo REST (confirmada)**: `NotebookPayload.toEntity` y
+   `StudentEntryPayload.toEntity` repetían la lógica de conversión de los DTOs.
+   Ahora ambos delegan en `NotebookDto`/`StudentEntryDto`: una sola lógica de
+   conversión. Efecto secundario deseado: el payload legacy de registros enviados
+   ahora deriva `submittedAt = createdAt`, igual que la migración Room 9→10 y el
+   DTO (antes quedaba null). Todas las pruebas existentes siguen pasando.
+
+### 12.3 Hallazgos del backend que NO se corrigieron (requieren Spring Boot)
+- **`server.address=127.0.0.1`**: el backend solo escucha en loopback. El emulador
+  funciona vía `10.0.2.2`, pero un **dispositivo físico** no podrá conectarse hasta
+  que el backend escuche en la interfaz LAN (cambio de backend, no realizado).
+- **Límites de tamaño**: el backend valida `@Size` (title ≤ 200, notebookTitle ≤ 200,
+  classDate ≤ 30, textos ≤ 10000, correos ≤ 255). Android no impone hoy esos límites;
+  un título largo sería rechazado con HTTP 400 al activar la integración. Decisión
+  pendiente: añadir límites en Android o ampliarlos en el backend. No se modificaron
+  pantallas ni validadores del MVP.
+- **Borradores solo con evidencia**: el backend exige texto en
+  content/activity/learning/doubts para aceptar un borrador; Android también acepta
+  borradores que solo tienen fotos/archivos/enlaces. Serán HTTP 400 hasta que el
+  backend soporte evidencias. No se cambió el comportamiento local del MVP.
+- Sigue pendiente todo el contrato propuesto de las secciones 4–5 (modelo mensual,
+  auth, evidencias, `updatedAt`, permisos por endpoint).
+
+### 12.4 Pruebas de la revisión
+| Comando | Resultado |
+|---|---|
+| `./gradlew :app:assembleDebug` | ✅ BUILD SUCCESSFUL |
+| `./gradlew :app:testDebugUnitTest` | ✅ **140 pruebas, 0 fallos** |
+| `./gradlew connectedDebugAndroidTest` | ❌ No ejecutada: "No connected devices!" (sin emulador/dispositivo). La migración 10→11 sigue pendiente de verificación en dispositivo. |
+
+### 12.5 ¿Está Android listo para iniciar la integración?
+**Sí, del lado Android**: modelos, mapeos, identificadores, estados de sync,
+interceptor de sesión, configuración de URL/puerto (ya alineada con el puerto real
+8090) y puertas de desactivación están preparados y probados. La integración no
+puede activarse todavía porque depende de que Spring Boot implemente el contrato
+propuesto (secciones 4–5) y los puntos de 12.3; nada de eso se modificó.

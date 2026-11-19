@@ -19,22 +19,24 @@ internal data class StudentEntryPayload(
     val isReviewed: Boolean = false,
     val teacherFeedback: String? = null
 ) {
-    fun toEntity(notebook: NotebookEntity): StudentEntryEntity = StudentEntryEntity(
-        notebookId = notebook.id,
-        notebookTitle = notebookTitle ?: notebook.title,
-        studentEmail = studentEmail.orEmpty(),
-        studentName = studentName.orEmpty(),
-        classDate = classDate.orEmpty(),
-        content = content.orEmpty(),
-        activity = activity.orEmpty(),
-        learning = learning.orEmpty(),
-        doubts = doubts.orEmpty(),
-        isDraft = isDraft,
-        createdAt = createdAt,
-        isReviewed = isReviewed,
-        teacherFeedback = teacherFeedback.orEmpty(),
-        remoteId = id.takeIf { it > 0 }
-    )
+    /** El mapeo legacy delega en el DTO completo: una sola lógica de conversión, sin duplicación. */
+    fun toEntity(notebook: NotebookEntity): StudentEntryEntity =
+        cl.duoc.coegio_pablo_saladana.data.remote.dto.StudentEntryDto(
+            id = id,
+            notebookId = notebookId,
+            notebookTitle = notebookTitle,
+            studentEmail = studentEmail,
+            studentName = studentName,
+            classDate = classDate,
+            content = content,
+            activity = activity,
+            learning = learning,
+            doubts = doubts,
+            isDraft = isDraft,
+            createdAt = createdAt,
+            isReviewed = isReviewed,
+            teacherFeedback = teacherFeedback
+        ).toEntity(notebook)
 }
 
 internal data class StudentEntryInput(

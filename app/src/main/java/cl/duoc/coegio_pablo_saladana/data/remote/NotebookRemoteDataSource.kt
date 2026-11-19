@@ -2,7 +2,6 @@ package cl.duoc.coegio_pablo_saladana.data.remote
 
 import cl.duoc.coegio_pablo_saladana.data.local.NotebookEntity
 import cl.duoc.coegio_pablo_saladana.domain.model.NotebookDraft
-import cl.duoc.coegio_pablo_saladana.domain.model.SchoolCourses
 import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -29,21 +28,19 @@ internal data class NotebookPayload(
     val course: String? = null,
     val assignedStudentEmails: String? = null
 ) {
-    fun toEntity(): NotebookEntity? {
-        if (title.isNullOrBlank()) return null
-        return NotebookEntity(
-            title = title,
-            purpose = purpose.orEmpty(),
-            instructions = instructions.orEmpty(),
-            questions = questions.orEmpty(),
-            teacherEmail = teacherEmail.orEmpty(),
-            teacherName = teacherName.orEmpty(),
-            createdAt = createdAt,
-            course = course?.takeIf(String::isNotBlank) ?: SchoolCourses.GENERAL,
-            assignedStudentEmails = assignedStudentEmails.orEmpty(),
-            remoteId = id.takeIf { it > 0 }
-        )
-    }
+    /** El mapeo legacy delega en el DTO completo: una sola lógica de conversión, sin duplicación. */
+    fun toEntity(): NotebookEntity? = cl.duoc.coegio_pablo_saladana.data.remote.dto.NotebookDto(
+        id = id,
+        title = title,
+        purpose = purpose,
+        instructions = instructions,
+        questions = questions,
+        teacherEmail = teacherEmail,
+        teacherName = teacherName,
+        createdAt = createdAt,
+        course = course,
+        assignedStudentEmails = assignedStudentEmails
+    ).toEntity()
 }
 
 internal data class NotebookInput(

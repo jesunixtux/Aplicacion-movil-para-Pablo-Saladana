@@ -38,7 +38,7 @@ class SessionTokenInterceptorTest {
         override fun withWriteTimeout(timeout: Int, unit: TimeUnit): Interceptor.Chain = this
     }
 
-    private val baseRequest = Request.Builder().url("http://10.0.2.2:8080/api/notebooks").build()
+    private val baseRequest = Request.Builder().url("http://10.0.2.2:8090/api/notebooks").build()
 
     @Test
     fun withoutTokenNoAuthorizationHeaderIsAttached() {

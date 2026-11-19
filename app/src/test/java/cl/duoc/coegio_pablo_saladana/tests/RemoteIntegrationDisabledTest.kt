@@ -22,7 +22,7 @@ class RemoteIntegrationDisabledTest {
     @Test
     fun remoteSyncFlagIsOffByDefault() {
         assertFalse(BuildConfig.REMOTE_SYNC_ENABLED)
-        assertEquals("http://10.0.2.2:8080/", BuildConfig.API_BASE_URL)
+        assertEquals("http://10.0.2.2:8090/", BuildConfig.API_BASE_URL)
     }
 
     @Test
