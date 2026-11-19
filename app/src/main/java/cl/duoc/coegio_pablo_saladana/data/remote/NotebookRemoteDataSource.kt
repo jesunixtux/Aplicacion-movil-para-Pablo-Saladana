@@ -80,15 +80,28 @@ internal interface SchoolApi {
     suspend fun updateEntry(@Path("id") id: Long, @Body input: StudentEntryInput): StudentEntryPayload
 }
 
-/** Cliente del backend local. Cambiar esta URL para un dispositivo físico o servidor remoto. */
+/**
+ * Cliente del backend. La URL sale de BuildConfig (Tarea 5):
+ * emulador por defecto, dispositivo físico o servidor externo vía -PapiBaseUrl.
+ * La comunicación remota permanece desactivada (BuildConfig.REMOTE_SYNC_ENABLED=false).
+ */
 internal object SchoolBackend {
-    private const val BASE_URL = "http://10.0.2.2:8080/"
     private val client = OkHttpClient.Builder()
         .connectTimeout(3, TimeUnit.SECONDS)
         .readTimeout(3, TimeUnit.SECONDS)
+        // Sin sesión remota todavía: el proveedor por defecto no entrega token y no se adjunta nada.
+        .addInterceptor(
+            cl.duoc.coegio_pablo_saladana.data.remote.auth.SessionTokenInterceptor(
+                cl.duoc.coegio_pablo_saladana.data.remote.auth.SessionTokenProvider { null }
+            )
+        )
         .build()
+
+    /** Puerta única de activación remota; nadie llama al backend si está en false. */
+    val remoteEnabled: Boolean = cl.duoc.coegio_pablo_saladana.BuildConfig.REMOTE_SYNC_ENABLED
+
     val api: SchoolApi = Retrofit.Builder()
-        .baseUrl(BASE_URL)
+        .baseUrl(cl.duoc.coegio_pablo_saladana.BuildConfig.API_BASE_URL)
         .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
@@ -99,20 +112,50 @@ internal object SchoolBackend {
 object NotebookRemoteDataSource {
     private val gson = Gson()
 
-    suspend fun fetchAll(): List<NotebookEntity>? = runCatching {
-        SchoolBackend.api.notebooks().mapNotNull(NotebookPayload::toEntity)
-    }.getOrNull()
+    /** Motivo del último fallo con el backend; null si la última llamada fue exitosa. */
+    var lastError: String? = null
+        private set
 
-    suspend fun create(draft: NotebookDraft, teacher: UserAccount): NotebookEntity? = runCatching {
-        SchoolBackend.api.createNotebook(input(draft, teacher.email, teacher.fullName)).toEntity()
-    }.getOrNull()
+    suspend fun fetchAll(): List<NotebookEntity>? {
+        lastError = null
+        if (!SchoolBackend.remoteEnabled) {
+            lastError = cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.REMOTE_DISABLED
+            return null
+        }
+        return runCatching {
+            SchoolBackend.api.notebooks().mapNotNull(NotebookPayload::toEntity)
+        }.onFailure { lastError = backendMessage(it) }.getOrNull()
+    }
+
+    suspend fun create(draft: NotebookDraft, teacher: UserAccount): NotebookEntity? {
+        lastError = null
+        if (!SchoolBackend.remoteEnabled) {
+            lastError = cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.REMOTE_DISABLED
+            return null
+        }
+        return runCatching {
+            SchoolBackend.api.createNotebook(input(draft, teacher.email, teacher.fullName)).toEntity()
+        }.onFailure { lastError = backendMessage(it) }.getOrNull()
+    }
 
     suspend fun update(notebook: NotebookEntity): NotebookEntity? {
-        val remoteId = notebook.remoteId ?: return null
+        lastError = null
+        if (!SchoolBackend.remoteEnabled) {
+            lastError = cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.REMOTE_DISABLED
+            return null
+        }
+        val remoteId = notebook.remoteId ?: run {
+            lastError = "La bitácora no tiene identificador remoto; no se puede actualizar en el servidor."
+            return null
+        }
         return runCatching {
             SchoolBackend.api.updateNotebook(remoteId, input(notebook)).toEntity()
-        }.getOrNull()
+        }.onFailure { lastError = backendMessage(it) }.getOrNull()
     }
+
+    private fun backendMessage(error: Throwable): String =
+        "Error del backend de bitácoras (${cl.duoc.coegio_pablo_saladana.BuildConfig.API_BASE_URL}). " +
+            cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.describe(error)
 
     private fun input(draft: NotebookDraft, teacherEmail: String, teacherName: String): NotebookInput {
         val normalized = draft.normalized()

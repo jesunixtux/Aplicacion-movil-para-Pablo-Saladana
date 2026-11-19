@@ -29,6 +29,17 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Configuración de conexión (Tarea 5). Sobrescribir sin tocar código:
+        //   Emulador (por defecto):  http://10.0.2.2:8080/
+        //   Dispositivo físico:      ./gradlew assembleDebug -PapiBaseUrl=http://192.168.1.50:8080/
+        //   Servidor externo:        ./gradlew assembleRelease -PapiBaseUrl=https://api.example.org/
+        // La comunicación remota sigue DESACTIVada hasta que el backend admita el contrato completo.
+        val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "http://10.0.2.2:8080/"
+        val remoteSyncEnabled =
+            (project.findProperty("remoteSyncEnabled") as String?)?.toBooleanStrictOrNull() ?: false
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        buildConfigField("boolean", "REMOTE_SYNC_ENABLED", remoteSyncEnabled.toString())
     }
 
     signingConfigs {

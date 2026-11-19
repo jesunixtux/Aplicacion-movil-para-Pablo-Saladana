@@ -4,6 +4,7 @@ import android.content.Context
 import cl.duoc.coegio_pablo_saladana.data.local.AppDatabase
 import cl.duoc.coegio_pablo_saladana.data.local.PasswordHasher
 import cl.duoc.coegio_pablo_saladana.data.local.UserEntity
+import cl.duoc.coegio_pablo_saladana.domain.error.AppErrors
 import cl.duoc.coegio_pablo_saladana.domain.model.SchoolCourses
 import cl.duoc.coegio_pablo_saladana.domain.model.SchoolSubjects
 import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
@@ -21,6 +22,10 @@ class UserRepository(context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     private val userDao = AppDatabase.getInstance(context).userDao()
 
+    /** Motivo específico del último fallo; null si la última operación fue exitosa. */
+    var lastError: String? = null
+        private set
+
     suspend fun register(
         firstName: String,
         middleName: String,
@@ -32,7 +37,8 @@ class UserRepository(context: Context) {
         role: UserRole,
         gender: UserGender,
         course: String = SchoolCourses.DEFAULT_STUDENT_COURSE
-    ): UserAccount? {
+    ): UserAccount? = runCatching {
+        lastError = null
         val normalizedEmail = email.trim().lowercase()
         val normalizedRut = RutValidator.format(rut.trim())
         if (
@@ -43,8 +49,12 @@ class UserRepository(context: Context) {
             !RutValidator.isValid(normalizedRut) ||
             !EmailValidator.isValid(normalizedEmail) ||
             !PasswordValidator.isValid(password)
-        ) return null
+        ) {
+            lastError = "Los datos del registro no son válidos. Revisa los campos marcados."
+            return null
+        }
         if (userDao.findByEmail(normalizedEmail) != null || userDao.findByRut(normalizedRut) != null) {
+            lastError = "Ya existe una cuenta con ese correo o RUT."
             return null
         }
 
@@ -67,46 +77,67 @@ class UserRepository(context: Context) {
             course = normalizedCourse
         )
         val id = userDao.insert(user)
-        return if (id == -1L) null else user.copy(id = id).toUserAccount()
-    }
+        if (id == -1L) {
+            lastError = "La base de datos local no pudo crear la cuenta."
+            return null
+        }
+        user.copy(id = id).toUserAccount()
+    }.getOrElse { lastError = AppErrors.describe(it); null }
 
-    suspend fun login(email: String, password: String): UserAccount? {
+    suspend fun login(email: String, password: String): UserAccount? = runCatching {
+        lastError = null
         val normalizedEmail = email.trim().lowercase()
-        val user = userDao.findByEmail(normalizedEmail) ?: return null
+        // Mensaje combinado a propósito: no revela si el correo existe (evita enumerar cuentas).
+        val user = userDao.findByEmail(normalizedEmail) ?: run {
+            lastError = "El correo o la contraseña no son correctos."
+            return null
+        }
         val verified = withContext(Dispatchers.Default) {
             PasswordHasher.verify(password, user.passwordHash)
         }
-        if (!verified) return null
+        if (!verified) {
+            lastError = "El correo o la contraseña no son correctos."
+            return null
+        }
         // Una cuenta antigua se actualiza después de verificar correctamente su contraseña.
         if (PasswordHasher.isLegacyHash(user.passwordHash)) {
             val upgradedHash = withContext(Dispatchers.Default) { PasswordHasher.create(password) }
             userDao.updatePasswordHash(user.id, user.passwordHash, upgradedHash)
         }
-        return user.toUserAccount()
-    }
+        user.toUserAccount()
+    }.getOrElse { lastError = AppErrors.describe(it); null }
 
-    suspend fun findAccountByEmail(email: String): UserAccount? {
-        return userDao.findByEmail(email.trim().lowercase())?.toUserAccount()
-    }
+    suspend fun findAccountByEmail(email: String): UserAccount? = runCatching {
+        lastError = null
+        userDao.findByEmail(email.trim().lowercase())?.toUserAccount()
+    }.getOrElse { lastError = AppErrors.describe(it); null }
 
-    suspend fun findAllStudents(): List<UserAccount> {
-        return userDao.findAllStudents().map { it.toUserAccount() }
-    }
+    suspend fun findAllStudents(): List<UserAccount> = runCatching {
+        lastError = null
+        userDao.findAllStudents().map { it.toUserAccount() }
+    }.getOrElse { lastError = AppErrors.describe(it); emptyList() }
 
-    suspend fun findAllStudentsByCourse(course: String): List<UserAccount> {
-        return userDao.findAllStudents().filter { it.course == course }.map { it.toUserAccount() }
-    }
+    suspend fun findAllStudentsByCourse(course: String): List<UserAccount> = runCatching {
+        lastError = null
+        userDao.findAllStudents().filter { it.course == course }.map { it.toUserAccount() }
+    }.getOrElse { lastError = AppErrors.describe(it); emptyList() }
 
-    suspend fun isAssignmentAvailable(course: String, subject: String): Boolean {
-        return course in SchoolCourses.STUDENT_COURSES && subject in SchoolSubjects.ALL &&
+    suspend fun isAssignmentAvailable(course: String, subject: String): Boolean = runCatching {
+        lastError = null
+        course in SchoolCourses.STUDENT_COURSES && subject in SchoolSubjects.ALL &&
             userDao.findTeacherByAssignment(course, subject) == null
-    }
+    }.getOrElse { lastError = AppErrors.describe(it); false }
 
-    suspend fun assignCourseToTeacher(teacherEmail: String, course: String, subject: String): Boolean {
-        if (!isAssignmentAvailable(course, subject)) return false
+    suspend fun assignCourseToTeacher(teacherEmail: String, course: String, subject: String): Boolean = runCatching {
+        lastError = null
+        if (!isAssignmentAvailable(course, subject)) {
+            lastError = "Ese curso y asignatura no están disponibles: ya los tomó otro docente o no existen."
+            return false
+        }
         val updated = userDao.updateTeacherAssignment(teacherEmail, course, subject)
-        return updated > 0
-    }
+        if (updated == 0) lastError = "No se encontró la cuenta docente para asignarle el curso."
+        updated > 0
+    }.getOrElse { lastError = AppErrors.describe(it); false }
 
     fun saveSession(account: UserAccount) {
         preferences.edit()
@@ -114,12 +145,13 @@ class UserRepository(context: Context) {
             .apply()
     }
 
-    suspend fun getActiveSession(): UserAccount? {
+    suspend fun getActiveSession(): UserAccount? = runCatching {
+        lastError = null
         val email = preferences.getString(ACTIVE_SESSION_KEY, null) ?: return null
         val account = userDao.findByEmail(email.trim().lowercase())?.toUserAccount()
         if (account == null) clearSession()
-        return account
-    }
+        account
+    }.getOrElse { lastError = AppErrors.describe(it); null }
 
     fun clearSession() {
         preferences.edit()

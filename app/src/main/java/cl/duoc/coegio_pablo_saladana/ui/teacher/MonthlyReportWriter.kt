@@ -13,6 +13,10 @@ import java.util.Locale
 
 /** Informe del MVP generado directamente en Android, sin servicios externos. */
 object MonthlyReportWriter {
+    /** Motivo específico del último fallo al generar el PDF; null si todo salió bien. */
+    var lastError: String? = null
+        private set
+
     fun write(
         resolver: ContentResolver,
         uri: Uri,
@@ -20,6 +24,7 @@ object MonthlyReportWriter {
         students: List<UserAccount>,
         entries: List<StudentEntryEntity>
     ): Boolean = runCatching {
+        lastError = null
         val pdf = PdfDocument()
         try {
             val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("es", "CL"))
@@ -86,5 +91,8 @@ object MonthlyReportWriter {
             pdf.close()
         }
         true
+    }.onFailure {
+        lastError = "No se pudo generar el PDF. " +
+            cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.describe(it)
     }.getOrDefault(false)
 }

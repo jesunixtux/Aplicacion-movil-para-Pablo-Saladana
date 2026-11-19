@@ -51,7 +51,7 @@ fun StudentEntryForm(
     notebookPeriod: String? = null,
     holidays: List<ChileanHoliday> = emptyList(),
     onBack: () -> Unit,
-    onSave: suspend (StudentEntryDraft, Boolean) -> Boolean,
+    onSave: suspend (StudentEntryDraft, Boolean) -> String?,
     onSaved: () -> Unit
 ) {
     val context = LocalContext.current
@@ -67,20 +67,31 @@ fun StudentEntryForm(
     var attachmentError by rememberSaveable { mutableStateOf<String?>(null) }
     val resolver = context.contentResolver
     fun savePickedUri(uri: android.net.Uri, isPhoto: Boolean) {
-        val bytes = runCatching {
+        val sizeResult = runCatching {
             resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
             }
-        }.getOrNull()
-        if (bytes == null || bytes > 10L * 1024L * 1024L) {
-            attachmentError = "Solo se permiten archivos de hasta 10 MB con tamaño conocido."
+        }
+        val bytes = sizeResult.getOrNull()
+        if (bytes == null) {
+            attachmentError = "No se pudo leer el tamaño del archivo. " + (
+                sizeResult.exceptionOrNull()?.let(cl.duoc.coegio_pablo_saladana.domain.error.AppErrors::describe)
+                    ?: "El archivo no informa su tamaño."
+                )
             return
         }
-        val persisted = runCatching {
+        if (bytes > 10L * 1024L * 1024L) {
+            attachmentError = "El archivo supera el límite de 10 MB (${bytes / (1024 * 1024)} MB)."
+            return
+        }
+        val permissionResult = runCatching {
             resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }.isSuccess
-        if (!persisted) {
-            attachmentError = "No se pudo conservar el permiso de lectura del archivo."
+        }
+        if (permissionResult.isFailure) {
+            attachmentError = "No se pudo conservar el permiso de lectura del archivo. " +
+                cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.describe(
+                    permissionResult.exceptionOrNull() ?: SecurityException("permiso no persistible")
+                )
             return
         }
         attachmentError = null

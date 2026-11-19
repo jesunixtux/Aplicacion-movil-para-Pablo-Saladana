@@ -65,6 +65,7 @@ fun ProfileScreen(
     role: UserRole,
     course: String = SchoolCourses.DEFAULT_STUDENT_COURSE,
     photoUri: Uri?,
+    photoError: String? = null,
     darkMode: Boolean = false,
     onToggleDarkMode: () -> Unit = {},
     onBack: () -> Unit,
@@ -220,6 +221,9 @@ fun ProfileScreen(
                         )
                     }
                 }
+            }
+            photoError?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
             OutlinedButton(
                 onClick = onToggleDarkMode,

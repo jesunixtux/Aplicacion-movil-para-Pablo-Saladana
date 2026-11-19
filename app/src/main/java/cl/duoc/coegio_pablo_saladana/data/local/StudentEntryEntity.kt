@@ -27,5 +27,9 @@ data class StudentEntryEntity(
     val links: String = "",
     val submittedAt: Long? = null,
     val reviewedAt: Long? = null,
-    val reviewerEmail: String = ""
+    val reviewerEmail: String = "",
+    // --- Metadatos de sincronización (migración 10→11, aditivos y conservadores) ---
+    val syncState: String = "LOCAL_ONLY",
+    val syncError: String? = null,
+    val updatedAt: Long = 0
 )

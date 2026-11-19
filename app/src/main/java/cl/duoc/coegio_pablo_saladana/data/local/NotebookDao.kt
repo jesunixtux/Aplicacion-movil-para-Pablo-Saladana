@@ -22,6 +22,10 @@ interface NotebookDao {
     @Query("SELECT * FROM notebooks WHERE remoteId = :remoteId LIMIT 1")
     suspend fun findByRemoteId(remoteId: Long): NotebookEntity?
 
+    /** Filas pendientes de enviar al backend (nuevas, modificadas o con error). Solo lectura. */
+    @Query("SELECT * FROM notebooks WHERE syncState != 'SYNCED' ORDER BY createdAt DESC, id DESC")
+    suspend fun findPendingSync(): List<NotebookEntity>
+
     @Query("SELECT * FROM notebooks WHERE title = :title AND teacherEmail = :teacherEmail LIMIT 1")
     suspend fun findByTitleAndTeacher(title: String, teacherEmail: String): NotebookEntity?
 

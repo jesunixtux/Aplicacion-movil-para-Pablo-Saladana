@@ -16,6 +16,10 @@ interface StudentEntryDao {
     @Query("SELECT * FROM student_entries WHERE remoteId = :remoteId LIMIT 1")
     suspend fun findByRemoteId(remoteId: Long): StudentEntryEntity?
 
+    /** Filas pendientes de enviar al backend (nuevas, modificadas o con error). Solo lectura. */
+    @Query("SELECT * FROM student_entries WHERE syncState != 'SYNCED' ORDER BY createdAt DESC, id DESC")
+    suspend fun findPendingSync(): List<StudentEntryEntity>
+
     @Query("SELECT * FROM student_entries WHERE studentEmail = :email ORDER BY createdAt DESC, id DESC")
     suspend fun findByStudent(email: String): List<StudentEntryEntity>
 
