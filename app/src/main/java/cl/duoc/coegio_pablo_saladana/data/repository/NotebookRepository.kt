@@ -65,7 +65,8 @@ class NotebookRepository(context: Context) {
             month = normalizedDraft.month,
             year = normalizedDraft.year,
             publishedAt = now,
-            assignedStudentEmails = normalizedDraft.assignedStudentEmails.joinToString(",")
+            assignedStudentEmails = normalizedDraft.assignedStudentEmails.joinToString(","),
+            updatedAt = now
         )
         notebook.copy(id = notebookDao.insert(notebook))
     }.getOrElse { lastError = AppErrors.describe(it); null }
@@ -110,7 +111,8 @@ class NotebookRepository(context: Context) {
             .joinToString(",")
         val updated = existing.copy(
             course = normalizedCourse,
-            assignedStudentEmails = serializedEmails
+            assignedStudentEmails = serializedEmails,
+            updatedAt = System.currentTimeMillis()
         )
         notebookDao.update(updated)
         updated
@@ -135,7 +137,7 @@ class NotebookRepository(context: Context) {
             lastError = "Solo puedes cerrar bitácoras de tu curso y asignatura."
             return null
         }
-        val closed = existing.copy(isClosed = true, closedAt = System.currentTimeMillis())
+        val closed = existing.copy(isClosed = true, closedAt = System.currentTimeMillis(), updatedAt = System.currentTimeMillis())
         notebookDao.update(closed)
         closed
     }.getOrElse { lastError = AppErrors.describe(it); null }
@@ -155,7 +157,7 @@ class NotebookRepository(context: Context) {
             lastError = "Solo puedes cambiar recordatorios de tus propias bitácoras."
             return null
         }
-        val updated = existing.copy(remindersEnabled = enabled)
+        val updated = existing.copy(remindersEnabled = enabled, updatedAt = System.currentTimeMillis())
         notebookDao.update(updated)
         updated
     }.getOrElse { lastError = AppErrors.describe(it); null }

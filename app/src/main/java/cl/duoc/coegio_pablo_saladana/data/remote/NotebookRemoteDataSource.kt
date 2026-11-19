@@ -80,15 +80,28 @@ internal interface SchoolApi {
     suspend fun updateEntry(@Path("id") id: Long, @Body input: StudentEntryInput): StudentEntryPayload
 }
 
-/** Cliente del backend local. Cambiar esta URL para un dispositivo físico o servidor remoto. */
+/**
+ * Cliente del backend. La URL sale de BuildConfig (Tarea 5):
+ * emulador por defecto, dispositivo físico o servidor externo vía -PapiBaseUrl.
+ * La comunicación remota permanece desactivada (BuildConfig.REMOTE_SYNC_ENABLED=false).
+ */
 internal object SchoolBackend {
-    private const val BASE_URL = "http://10.0.2.2:8080/"
     private val client = OkHttpClient.Builder()
         .connectTimeout(3, TimeUnit.SECONDS)
         .readTimeout(3, TimeUnit.SECONDS)
+        // Sin sesión remota todavía: el proveedor por defecto no entrega token y no se adjunta nada.
+        .addInterceptor(
+            cl.duoc.coegio_pablo_saladana.data.remote.auth.SessionTokenInterceptor(
+                cl.duoc.coegio_pablo_saladana.data.remote.auth.SessionTokenProvider { null }
+            )
+        )
         .build()
+
+    /** Puerta única de activación remota; nadie llama al backend si está en false. */
+    val remoteEnabled: Boolean = cl.duoc.coegio_pablo_saladana.BuildConfig.REMOTE_SYNC_ENABLED
+
     val api: SchoolApi = Retrofit.Builder()
-        .baseUrl(BASE_URL)
+        .baseUrl(cl.duoc.coegio_pablo_saladana.BuildConfig.API_BASE_URL)
         .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
@@ -105,6 +118,10 @@ object NotebookRemoteDataSource {
 
     suspend fun fetchAll(): List<NotebookEntity>? {
         lastError = null
+        if (!SchoolBackend.remoteEnabled) {
+            lastError = cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.REMOTE_DISABLED
+            return null
+        }
         return runCatching {
             SchoolBackend.api.notebooks().mapNotNull(NotebookPayload::toEntity)
         }.onFailure { lastError = backendMessage(it) }.getOrNull()
@@ -112,6 +129,10 @@ object NotebookRemoteDataSource {
 
     suspend fun create(draft: NotebookDraft, teacher: UserAccount): NotebookEntity? {
         lastError = null
+        if (!SchoolBackend.remoteEnabled) {
+            lastError = cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.REMOTE_DISABLED
+            return null
+        }
         return runCatching {
             SchoolBackend.api.createNotebook(input(draft, teacher.email, teacher.fullName)).toEntity()
         }.onFailure { lastError = backendMessage(it) }.getOrNull()
@@ -119,6 +140,10 @@ object NotebookRemoteDataSource {
 
     suspend fun update(notebook: NotebookEntity): NotebookEntity? {
         lastError = null
+        if (!SchoolBackend.remoteEnabled) {
+            lastError = cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.REMOTE_DISABLED
+            return null
+        }
         val remoteId = notebook.remoteId ?: run {
             lastError = "La bitácora no tiene identificador remoto; no se puede actualizar en el servidor."
             return null
@@ -129,7 +154,7 @@ object NotebookRemoteDataSource {
     }
 
     private fun backendMessage(error: Throwable): String =
-        "Error del backend de bitácoras (http://10.0.2.2:8080). " +
+        "Error del backend de bitácoras (${cl.duoc.coegio_pablo_saladana.BuildConfig.API_BASE_URL}). " +
             cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.describe(error)
 
     private fun input(draft: NotebookDraft, teacherEmail: String, teacherName: String): NotebookInput {

@@ -95,7 +95,8 @@ class StudentEntryRepository(context: Context) {
             photoUris = normalizedDraft.photoUris,
             fileUris = normalizedDraft.fileUris,
             links = normalizedDraft.links,
-            submittedAt = if (isDraft) null else now
+            submittedAt = if (isDraft) null else now,
+            updatedAt = now
         )
         entry.copy(id = entryDao.insert(entry))
     }.getOrElse { lastError = AppErrors.describe(it); null }
@@ -152,7 +153,8 @@ class StudentEntryRepository(context: Context) {
             photoUris = normalizedDraft.photoUris,
             fileUris = normalizedDraft.fileUris,
             links = normalizedDraft.links,
-            submittedAt = if (isDraft) null else System.currentTimeMillis()
+            submittedAt = if (isDraft) null else System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
         )
         entryDao.update(candidate)
         candidate
@@ -180,7 +182,8 @@ class StudentEntryRepository(context: Context) {
             }
         val updated = existing.copy(
             isReviewed = true, teacherFeedback = feedback.trim(),
-            reviewedAt = System.currentTimeMillis(), reviewerEmail = teacher.email
+            reviewedAt = System.currentTimeMillis(), reviewerEmail = teacher.email,
+            updatedAt = System.currentTimeMillis()
         )
         entryDao.update(updated)
         updated

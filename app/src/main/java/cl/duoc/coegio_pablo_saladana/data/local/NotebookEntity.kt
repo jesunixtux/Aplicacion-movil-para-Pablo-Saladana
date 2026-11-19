@@ -27,7 +27,11 @@ data class NotebookEntity(
     val isClosed: Boolean = false,
     val publishedAt: Long = createdAt,
     val closedAt: Long? = null,
-    val remindersEnabled: Boolean = true
+    val remindersEnabled: Boolean = true,
+    // --- Metadatos de sincronización (migración 10→11, aditivos y conservadores) ---
+    val syncState: String = "LOCAL_ONLY",
+    val syncError: String? = null,
+    val updatedAt: Long = 0
 ) {
     val isOpen: Boolean get() = !isClosed
 

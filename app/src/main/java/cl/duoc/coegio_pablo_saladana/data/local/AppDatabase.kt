@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 /** Base local de Room y punto único de acceso a usuarios, bitácoras y registros. */
 @Database(
     entities = [UserEntity::class, NotebookEntity::class, StudentEntryEntity::class],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,7 +37,8 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_6_7,
                     MIGRATION_7_8,
                     MIGRATION_8_9,
-                    MIGRATION_9_10
+                    MIGRATION_9_10,
+                    MIGRATION_10_11
                 ).build().also { instance = it }
             }
         }
@@ -175,6 +176,22 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE student_entries ADD COLUMN reviewedAt INTEGER")
                 db.execSQL("ALTER TABLE student_entries ADD COLUMN reviewerEmail TEXT NOT NULL DEFAULT ''")
                 db.execSQL("UPDATE student_entries SET submittedAt = createdAt WHERE isDraft = 0")
+            }
+        }
+
+        // Preparación de sincronización (Tarea 3): solo AÑADE columnas con defaults
+        // conservadores. No borra ni modifica datos existentes; updatedAt hereda
+        // createdAt para que la futura resolución de conflictos tenga una marca real.
+        internal val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notebooks ADD COLUMN syncState TEXT NOT NULL DEFAULT 'LOCAL_ONLY'")
+                db.execSQL("ALTER TABLE notebooks ADD COLUMN syncError TEXT")
+                db.execSQL("ALTER TABLE notebooks ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE notebooks SET updatedAt = createdAt")
+                db.execSQL("ALTER TABLE student_entries ADD COLUMN syncState TEXT NOT NULL DEFAULT 'LOCAL_ONLY'")
+                db.execSQL("ALTER TABLE student_entries ADD COLUMN syncError TEXT")
+                db.execSQL("ALTER TABLE student_entries ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE student_entries SET updatedAt = createdAt")
             }
         }
     }

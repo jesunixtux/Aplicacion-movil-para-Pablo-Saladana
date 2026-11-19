@@ -18,6 +18,8 @@ import retrofit2.HttpException
 object AppErrors {
     const val NOT_LOGGED_IN = "Tu sesión ya no está activa. Vuelve a iniciar sesión."
     const val DATABASE_FALLBACK = "No se pudo completar la operación en la base de datos local."
+    const val REMOTE_DISABLED =
+        "La comunicación con el backend está desactivada (REMOTE_SYNC_ENABLED=false). La aplicación sigue funcionando con datos locales."
 
     fun describe(error: Throwable): String = when (error) {
         is HttpException -> when (error.code()) {
