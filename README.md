@@ -4,9 +4,9 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 
 > **Etapa actual: MVP integrado con Spring Boot / MySQL.** MySQL es la fuente central de cuentas, bitácoras, registros, evidencias y revisiones. Room se conserva como caché y almacenamiento de borradores sin conexión.
 
-## Integrantes
+## Integrante
 
-Antes de entregar, ambos integrantes deben escribir aquí sus nombres completos. El segundo integrante debe realizar ese cambio desde su propia cuenta de GitHub para que la participación quede respaldada por un aporte real; no se incluyen identidades ficticias.
+Trabajo individual. Responsable del repositorio: [@jesunixtux](https://github.com/jesunixtux).
 
 ## Estado actual
 
