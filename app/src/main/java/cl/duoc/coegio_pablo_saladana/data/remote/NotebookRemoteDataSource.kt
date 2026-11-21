@@ -1,182 +1,225 @@
 package cl.duoc.coegio_pablo_saladana.data.remote
 
+import cl.duoc.coegio_pablo_saladana.BuildConfig
 import cl.duoc.coegio_pablo_saladana.data.local.NotebookEntity
+import cl.duoc.coegio_pablo_saladana.data.remote.auth.AuthResponseDto
+import cl.duoc.coegio_pablo_saladana.data.remote.auth.RemoteSessionStore
+import cl.duoc.coegio_pablo_saladana.data.remote.auth.RemoteUserDto
+import cl.duoc.coegio_pablo_saladana.data.remote.auth.SessionTokenInterceptor
+import cl.duoc.coegio_pablo_saladana.data.remote.auth.SessionTokenProvider
+import cl.duoc.coegio_pablo_saladana.data.remote.dto.EvidenceDto
+import cl.duoc.coegio_pablo_saladana.data.remote.dto.NotebookDto
+import cl.duoc.coegio_pablo_saladana.data.remote.dto.StudentEntryDto
+import cl.duoc.coegio_pablo_saladana.domain.error.AppErrors
 import cl.duoc.coegio_pablo_saladana.domain.model.NotebookDraft
-import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.util.concurrent.TimeUnit
-import okhttp3.OkHttpClient
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
+import retrofit2.HttpException
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
-internal data class NotebookPayload(
-    val id: Long = 0,
-    val title: String? = null,
-    val purpose: String? = null,
-    val instructions: String? = null,
-    val questions: String? = null,
-    val teacherEmail: String? = null,
-    val teacherName: String? = null,
-    val createdAt: Long = 0,
-    val course: String? = null,
-    val assignedStudentEmails: String? = null
-) {
-    /** El mapeo legacy delega en el DTO completo: una sola lógica de conversión, sin duplicación. */
-    fun toEntity(): NotebookEntity? = cl.duoc.coegio_pablo_saladana.data.remote.dto.NotebookDto(
-        id = id,
-        title = title,
-        purpose = purpose,
-        instructions = instructions,
-        questions = questions,
-        teacherEmail = teacherEmail,
-        teacherName = teacherName,
-        createdAt = createdAt,
-        course = course,
-        assignedStudentEmails = assignedStudentEmails
-    ).toEntity()
-}
+internal data class LoginInput(val email: String, val password: String)
+internal data class RegisterInput(val name: String, val email: String, val password: String, val course: String)
 
 internal data class NotebookInput(
     val title: String,
     val purpose: String,
     val instructions: String,
     val questions: String,
-    val teacherEmail: String,
-    val teacherName: String,
     val course: String,
-    val assignedStudentEmails: String
+    val assignedStudentEmails: String,
+    val subject: String,
+    val month: Int,
+    val year: Int
 )
 
+internal data class StudentEntryInput(
+    val notebookId: Long,
+    val notebookTitle: String,
+    val classDate: String,
+    val content: String,
+    val activity: String,
+    val learning: String,
+    val doubts: String,
+    val isDraft: Boolean,
+    val isReviewed: Boolean = false,
+    val teacherFeedback: String = ""
+)
+
+internal data class ReviewInput(val feedback: String)
+internal data class RemindersInput(val enabled: Boolean)
+
 internal interface SchoolApi {
-    @GET("api/notebooks")
-    suspend fun notebooks(): List<NotebookPayload>
+    @POST("api/auth/login") suspend fun login(@Body input: LoginInput): AuthResponseDto
+    @POST("api/auth/register") suspend fun register(@Body input: RegisterInput): AuthResponseDto
+    @GET("api/auth/me") suspend fun me(): RemoteUserDto
+    @POST("api/auth/logout") suspend fun logout(): Response<Unit>
 
-    @POST("api/notebooks")
-    suspend fun createNotebook(@Body input: NotebookInput): NotebookPayload
+    @GET("api/notebooks") suspend fun notebooks(): List<NotebookDto>
+    @POST("api/notebooks") suspend fun createNotebook(
+        @Header("Idempotency-Key") key: String, @Body input: NotebookInput
+    ): NotebookDto
+    @PUT("api/notebooks/{id}") suspend fun updateNotebook(
+        @Path("id") id: Long, @Header("If-Match") version: String, @Body input: NotebookInput
+    ): NotebookDto
+    @POST("api/notebooks/{id}/publish") suspend fun publishNotebook(
+        @Path("id") id: Long, @Header("If-Match") version: String
+    ): NotebookDto
+    @POST("api/notebooks/{id}/close") suspend fun closeNotebook(
+        @Path("id") id: Long, @Header("If-Match") version: String
+    ): NotebookDto
+    @PUT("api/notebooks/{id}/reminders") suspend fun reminders(
+        @Path("id") id: Long, @Header("If-Match") version: String, @Body input: RemindersInput
+    ): NotebookDto
 
-    @PUT("api/notebooks/{id}")
-    suspend fun updateNotebook(@Path("id") id: Long, @Body input: NotebookInput): NotebookPayload
-
-    @GET("api/student-entries")
-    suspend fun entries(
+    @GET("api/student-entries") suspend fun entries(
         @Query("studentEmail") studentEmail: String? = null,
         @Query("teacherEmail") teacherEmail: String? = null
-    ): List<StudentEntryPayload>
+    ): List<StudentEntryDto>
+    @GET("api/student-entries/{id}") suspend fun entry(@Path("id") id: Long): StudentEntryDto
+    @POST("api/student-entries") suspend fun createEntry(
+        @Header("Idempotency-Key") key: String, @Body input: StudentEntryInput
+    ): StudentEntryDto
+    @PUT("api/student-entries/{id}") suspend fun updateEntry(
+        @Path("id") id: Long, @Header("If-Match") version: String, @Body input: StudentEntryInput
+    ): StudentEntryDto
+    @POST("api/student-entries/{id}/submit") suspend fun submitEntry(
+        @Path("id") id: Long, @Header("If-Match") version: String
+    ): StudentEntryDto
+    @PUT("api/student-entries/{id}/review") suspend fun reviewEntry(
+        @Path("id") id: Long, @Header("If-Match") version: String, @Body input: ReviewInput
+    ): StudentEntryDto
 
-    @POST("api/student-entries")
-    suspend fun createEntry(@Body input: StudentEntryInput): StudentEntryPayload
+    @Multipart
+    @POST("api/evidences")
+    suspend fun uploadEvidence(
+        @Header("Idempotency-Key") key: String,
+        @Part("entryRemoteId") entryRemoteId: RequestBody,
+        @Part("kind") kind: RequestBody,
+        @Part file: MultipartBody.Part? = null,
+        @Part("url") url: RequestBody? = null
+    ): EvidenceDto
 
-    @PUT("api/student-entries/{id}")
-    suspend fun updateEntry(@Path("id") id: Long, @Body input: StudentEntryInput): StudentEntryPayload
+    @Streaming
+    @GET("api/evidences/{id}")
+    suspend fun evidence(@Path("id") id: Long): Response<ResponseBody>
 }
 
-/**
- * Cliente del backend. La URL sale de BuildConfig (Tarea 5):
- * emulador por defecto, dispositivo físico o servidor externo vía -PapiBaseUrl.
- * La comunicación remota permanece desactivada (BuildConfig.REMOTE_SYNC_ENABLED=false).
- */
 internal object SchoolBackend {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(3, TimeUnit.SECONDS)
-        .readTimeout(3, TimeUnit.SECONDS)
-        // Sin sesión remota todavía: el proveedor por defecto no entrega token y no se adjunta nada.
-        .addInterceptor(
-            cl.duoc.coegio_pablo_saladana.data.remote.auth.SessionTokenInterceptor(
-                cl.duoc.coegio_pablo_saladana.data.remote.auth.SessionTokenProvider { null }
-            )
-        )
+    @Volatile private var sessionStore: RemoteSessionStore? = null
+
+    private val client = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .addInterceptor(SessionTokenInterceptor(SessionTokenProvider { sessionStore?.currentToken() }) {
+            sessionStore?.clear()
+        })
         .build()
 
-    /** Puerta única de activación remota; nadie llama al backend si está en false. */
-    val remoteEnabled: Boolean = cl.duoc.coegio_pablo_saladana.BuildConfig.REMOTE_SYNC_ENABLED
-
+    val remoteEnabled: Boolean = BuildConfig.REMOTE_SYNC_ENABLED && safeBaseUrl(BuildConfig.API_BASE_URL)
     val api: SchoolApi = Retrofit.Builder()
-        .baseUrl(cl.duoc.coegio_pablo_saladana.BuildConfig.API_BASE_URL)
+        .baseUrl(BuildConfig.API_BASE_URL)
         .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(SchoolApi::class.java)
+
+    fun configure(store: RemoteSessionStore) { sessionStore = store }
+    fun hasSession(): Boolean = sessionStore?.currentToken() != null
+
+    private fun safeBaseUrl(value: String): Boolean {
+        val url = runCatching { java.net.URI(value) }.getOrNull() ?: return false
+        if (url.scheme.equals("https", true)) return true
+        if (!url.scheme.equals("http", true)) return false
+        val host = url.host ?: return false
+        return host == "10.0.2.2" || host == "127.0.0.1" || host == "localhost" ||
+            host.startsWith("192.168.") || host.startsWith("10.") || host.endsWith(".local")
+    }
 }
 
-/** Sincroniza bitácoras con Spring Boot y conserva el identificador remoto. */
+internal fun backendMessage(area: String, error: Throwable): String {
+    val status = (error as? HttpException)?.code()
+    val detail = when (status) {
+        401 -> "La sesión expiró. Inicia sesión nuevamente."
+        403 -> "Tu cuenta no tiene permiso para esta operación."
+        404 -> "El recurso no existe o no está autorizado para tu cuenta."
+        409 -> "El servidor rechazó una operación duplicada o incompatible."
+        412 -> "Los datos cambiaron en otro dispositivo; vuelve a sincronizar."
+        else -> AppErrors.describe(error)
+    }
+    return "Error del backend de $area (${BuildConfig.API_BASE_URL}). $detail"
+}
+
 object NotebookRemoteDataSource {
     private val gson = Gson()
-
-    /** Motivo del último fallo con el backend; null si la última llamada fue exitosa. */
     var lastError: String? = null
         private set
 
-    suspend fun fetchAll(): List<NotebookEntity>? {
-        lastError = null
-        if (!SchoolBackend.remoteEnabled) {
-            lastError = cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.REMOTE_DISABLED
-            return null
-        }
-        return runCatching {
-            SchoolBackend.api.notebooks().mapNotNull(NotebookPayload::toEntity)
-        }.onFailure { lastError = backendMessage(it) }.getOrNull()
-    }
+    suspend fun fetchAll(): List<NotebookDto>? = call { SchoolBackend.api.notebooks() }
 
-    suspend fun create(draft: NotebookDraft, teacher: UserAccount): NotebookEntity? {
-        lastError = null
-        if (!SchoolBackend.remoteEnabled) {
-            lastError = cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.REMOTE_DISABLED
-            return null
-        }
-        return runCatching {
-            SchoolBackend.api.createNotebook(input(draft, teacher.email, teacher.fullName)).toEntity()
-        }.onFailure { lastError = backendMessage(it) }.getOrNull()
-    }
-
-    suspend fun update(notebook: NotebookEntity): NotebookEntity? {
-        lastError = null
-        if (!SchoolBackend.remoteEnabled) {
-            lastError = cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.REMOTE_DISABLED
-            return null
-        }
-        val remoteId = notebook.remoteId ?: run {
-            lastError = "La bitácora no tiene identificador remoto; no se puede actualizar en el servidor."
-            return null
-        }
-        return runCatching {
-            SchoolBackend.api.updateNotebook(remoteId, input(notebook)).toEntity()
-        }.onFailure { lastError = backendMessage(it) }.getOrNull()
-    }
-
-    private fun backendMessage(error: Throwable): String =
-        "Error del backend de bitácoras (${cl.duoc.coegio_pablo_saladana.BuildConfig.API_BASE_URL}). " +
-            cl.duoc.coegio_pablo_saladana.domain.error.AppErrors.describe(error)
-
-    private fun input(draft: NotebookDraft, teacherEmail: String, teacherName: String): NotebookInput {
-        val normalized = draft.normalized()
-        return NotebookInput(
-            normalized.title, normalized.purpose, normalized.instructions, normalized.questions,
-            teacherEmail.trim(), teacherName.trim(), normalized.course,
-            normalized.assignedStudentEmails.sorted().joinToString(",")
+    suspend fun create(notebook: NotebookEntity): NotebookDto? = call {
+        SchoolBackend.api.createNotebook(
+            "android-notebook-${notebook.remoteOwnerId}-${notebook.createdAt}-${notebook.id}", input(notebook)
         )
     }
 
+    suspend fun update(notebook: NotebookEntity, remoteVersion: Long): NotebookDto? {
+        val id = notebook.remoteId ?: return fail("La bitácora no tiene identificador remoto.")
+        return call { SchoolBackend.api.updateNotebook(id, remoteVersion.toString(), input(notebook)) }
+    }
+
+    suspend fun publish(remoteId: Long, version: Long): NotebookDto? =
+        call { SchoolBackend.api.publishNotebook(remoteId, version.toString()) }
+
+    suspend fun close(remoteId: Long, version: Long): NotebookDto? =
+        call { SchoolBackend.api.closeNotebook(remoteId, version.toString()) }
+
+    suspend fun reminders(remoteId: Long, version: Long, enabled: Boolean): NotebookDto? =
+        call { SchoolBackend.api.reminders(remoteId, version.toString(), RemindersInput(enabled)) }
+
+    private suspend fun <T> call(block: suspend () -> T): T? {
+        lastError = null
+        if (!SchoolBackend.remoteEnabled) return fail(AppErrors.REMOTE_DISABLED)
+        return runCatching { block() }.onFailure { lastError = backendMessage("bitácoras", it) }.getOrNull()
+    }
+
+    private fun <T> fail(message: String): T? { lastError = message; return null }
+
     private fun input(notebook: NotebookEntity) = NotebookInput(
         notebook.title, notebook.purpose, notebook.instructions, notebook.questions,
-        notebook.teacherEmail, notebook.teacherName, notebook.course, notebook.assignedStudentEmails
+        notebook.course, notebook.assignedStudentEmails, notebook.subject, notebook.month, notebook.year
     )
 
-    internal fun encodeNotebookInput(draft: NotebookDraft, teacherEmail: String, teacherName: String): String =
-        gson.toJson(input(draft, teacherEmail, teacherName))
+    internal fun encodeNotebookInput(draft: NotebookDraft, teacherEmail: String, teacherName: String): String {
+        val normalized = draft.normalized()
+        return gson.toJson(NotebookInput(
+            normalized.title, normalized.purpose, normalized.instructions, normalized.questions,
+            normalized.course, normalized.assignedStudentEmails.sorted().joinToString(","),
+            normalized.subject, normalized.month, normalized.year
+        ))
+    }
 
     internal fun parseNotebookList(json: String): List<NotebookEntity> = runCatching {
-        val type = object : TypeToken<List<NotebookPayload>>() {}.type
-        (gson.fromJson<List<NotebookPayload>>(json, type) ?: emptyList()).mapNotNull(NotebookPayload::toEntity)
+        val type = object : TypeToken<List<NotebookDto>>() {}.type
+        (gson.fromJson<List<NotebookDto>>(json, type) ?: emptyList()).mapNotNull { it.toEntity() }
     }.getOrDefault(emptyList())
 
     internal fun parseNotebookObject(json: String): NotebookEntity? = runCatching {
-        gson.fromJson(json, NotebookPayload::class.java)?.toEntity()
+        gson.fromJson(json, NotebookDto::class.java)?.toEntity()
     }.getOrNull()
 }

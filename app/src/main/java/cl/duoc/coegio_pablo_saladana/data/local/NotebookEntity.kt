@@ -31,7 +31,11 @@ data class NotebookEntity(
     // --- Metadatos de sincronización (migración 10→11, aditivos y conservadores) ---
     val syncState: String = "LOCAL_ONLY",
     val syncError: String? = null,
-    val updatedAt: Long = 0
+    val updatedAt: Long = 0,
+    /** Evita atribuir bitácoras locales antiguas a una identidad remota por correo. */
+    val remoteOwnerId: Long? = null,
+    /** Última identidad remota para la que el servidor autorizó esta fila en caché. */
+    val cachedForUserId: Long? = null
 ) {
     val isOpen: Boolean get() = !isClosed
 

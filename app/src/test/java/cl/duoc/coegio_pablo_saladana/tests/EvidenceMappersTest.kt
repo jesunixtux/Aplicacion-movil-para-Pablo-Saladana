@@ -57,6 +57,14 @@ class EvidenceMappersTest {
     }
 
     @Test
+    fun backendEvidenceIdBecomesAuthenticatedDownloadReference() {
+        val lines = EvidenceMappers.toLocalPhotoLines(listOf(
+            EvidenceDto(id = 73, kind = EvidenceKind.PHOTO, remoteRef = "storage-key", transferState = EvidenceTransferState.UPLOADED)
+        ))
+        assertEquals("73", lines)
+    }
+
+    @Test
     fun onlyUploadedReferencesReturnToLocalLines() {
         val evidences = listOf(
             EvidenceDto(kind = EvidenceKind.PHOTO, transferState = EvidenceTransferState.PENDING),

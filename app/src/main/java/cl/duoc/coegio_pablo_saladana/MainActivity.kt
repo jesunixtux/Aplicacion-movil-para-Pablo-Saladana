@@ -33,6 +33,10 @@ import cl.duoc.coegio_pablo_saladana.domain.error.AppErrors
 import cl.duoc.coegio_pablo_saladana.data.repository.NotebookRepository
 import cl.duoc.coegio_pablo_saladana.data.repository.StudentEntryRepository
 import cl.duoc.coegio_pablo_saladana.data.repository.UserRepository
+import cl.duoc.coegio_pablo_saladana.data.remote.SchoolBackend
+import cl.duoc.coegio_pablo_saladana.data.remote.auth.RemoteSessionStore
+import cl.duoc.coegio_pablo_saladana.domain.auth.LocalAuthProvider
+import cl.duoc.coegio_pablo_saladana.domain.auth.RemoteAuthProvider
 import cl.duoc.coegio_pablo_saladana.ui.AppViewModel
 import cl.duoc.coegio_pablo_saladana.ui.auth.AuthScreens
 import cl.duoc.coegio_pablo_saladana.ui.auth.AuthViewModel
@@ -49,11 +53,17 @@ class MainActivity : ComponentActivity() {
         val notebookRepository: NotebookRepository
         val studentEntryRepository: StudentEntryRepository
         val profilePhotoStorage: ProfilePhotoStorage
+        val authProvider: cl.duoc.coegio_pablo_saladana.domain.auth.AuthProvider
         try {
             userRepository = UserRepository(applicationContext)
             notebookRepository = NotebookRepository(applicationContext)
             studentEntryRepository = StudentEntryRepository(applicationContext)
             profilePhotoStorage = ProfilePhotoStorage(applicationContext)
+            authProvider = if (SchoolBackend.remoteEnabled) {
+                RemoteAuthProvider(RemoteSessionStore(applicationContext))
+            } else {
+                LocalAuthProvider(userRepository)
+            }
         } catch (error: Exception) {
             // Sin base de datos no hay aplicación: muestra el motivo exacto en vez de cerrarse.
             setContent {
@@ -76,7 +86,7 @@ class MainActivity : ComponentActivity() {
 
         val authViewModel = ViewModelProvider(
             this,
-            AuthViewModel.factory(userRepository)
+            AuthViewModel.factory(authProvider)
         )[AuthViewModel::class.java]
 
         val appViewModel = ViewModelProvider(
@@ -86,7 +96,8 @@ class MainActivity : ComponentActivity() {
                 userRepository = userRepository,
                 notebookRepository = notebookRepository,
                 studentEntryRepository = studentEntryRepository,
-                profilePhotoStorage = profilePhotoStorage
+                profilePhotoStorage = profilePhotoStorage,
+                authProvider = authProvider
             )
         )[AppViewModel::class.java]
 

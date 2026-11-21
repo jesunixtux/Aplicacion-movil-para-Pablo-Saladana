@@ -20,6 +20,7 @@ enum class EvidenceTransferState { PENDING, UPLOADED, FAILED, NOT_APPLICABLE }
  * referencias remotas reales (https://... o un identificador del servidor).
  */
 data class EvidenceDto(
+    val id: Long? = null,
     val kind: EvidenceKind? = null,
     val fileName: String? = null,
     val mimeType: String? = null,

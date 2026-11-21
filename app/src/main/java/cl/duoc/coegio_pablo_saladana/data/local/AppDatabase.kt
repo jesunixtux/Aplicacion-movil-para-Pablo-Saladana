@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 /** Base local de Room y punto único de acceso a usuarios, bitácoras y registros. */
 @Database(
     entities = [UserEntity::class, NotebookEntity::class, StudentEntryEntity::class],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -38,7 +38,8 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_7_8,
                     MIGRATION_8_9,
                     MIGRATION_9_10,
-                    MIGRATION_10_11
+                    MIGRATION_10_11,
+                    MIGRATION_11_12
                 ).build().also { instance = it }
             }
         }
@@ -192,6 +193,15 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE student_entries ADD COLUMN syncError TEXT")
                 db.execSQL("ALTER TABLE student_entries ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("UPDATE student_entries SET updatedAt = createdAt")
+            }
+        }
+
+        /** Añade vínculos remotos explícitos sin reclamar filas históricas por correo. */
+        internal val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notebooks ADD COLUMN remoteOwnerId INTEGER")
+                db.execSQL("ALTER TABLE notebooks ADD COLUMN cachedForUserId INTEGER")
+                db.execSQL("ALTER TABLE student_entries ADD COLUMN remoteOwnerId INTEGER")
             }
         }
     }

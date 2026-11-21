@@ -16,6 +16,7 @@ import cl.duoc.coegio_pablo_saladana.data.repository.NotebookRepository
 import cl.duoc.coegio_pablo_saladana.data.repository.StudentEntryRepository
 import cl.duoc.coegio_pablo_saladana.data.repository.UserRepository
 import cl.duoc.coegio_pablo_saladana.domain.error.AppErrors
+import cl.duoc.coegio_pablo_saladana.domain.auth.AuthProvider
 import cl.duoc.coegio_pablo_saladana.domain.model.NotebookDraft
 import cl.duoc.coegio_pablo_saladana.domain.model.StudentEntryDraft
 import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
@@ -32,7 +33,8 @@ class AppViewModel(
     private val userRepository: UserRepository,
     private val notebookRepository: NotebookRepository,
     private val studentEntryRepository: StudentEntryRepository,
-    private val profilePhotoStorage: ProfilePhotoStorage
+    private val profilePhotoStorage: ProfilePhotoStorage,
+    private val authProvider: AuthProvider
 ) : ViewModel() {
 
     var uiState by mutableStateOf(AppUiState())
@@ -48,14 +50,14 @@ class AppViewModel(
         if (initialized) return
         initialized = true
         viewModelScope.launch {
-            val restoredSession = userRepository.getActiveSession()
-            val localNotebooks = notebookRepository.findAll()
+            val restoredSession = authProvider.restoreSession()
+            val localNotebooks = notebookRepository.findAll(restoredSession)
             val allStudents = userRepository.findAllStudents()
             val studentEntries = restoredSession?.takeIf { it.role == UserRole.Student }
-                ?.let { studentEntryRepository.findLocalByStudent(it.email) }
+                ?.let { studentEntryRepository.findLocalByStudent(it) }
                 ?: emptyList()
             val teacherEntries = restoredSession?.takeIf { it.role == UserRole.Teacher }
-                ?.let { studentEntryRepository.findLocalSubmittedByTeacher(it.email) }
+                ?.let { studentEntryRepository.findLocalSubmittedByTeacher(it) }
                 ?: emptyList()
             val photoUri = restoredSession?.let {
                 withContext(Dispatchers.IO) { profilePhotoStorage.uriFor(it.email) }
@@ -82,11 +84,11 @@ class AppViewModel(
             )
 
             // Mantiene la lectura local; la integración del nuevo modelo con Spring Boot se hará después.
-            val syncedNotebooks = notebookRepository.syncWithBackend()
+            val syncedNotebooks = notebookRepository.syncWithBackend(restoredSession)
             val syncedStudentEntries = restoredSession?.takeIf { it.role == UserRole.Student }
-                ?.let { studentEntryRepository.findByStudent(it.email) } ?: emptyList()
+                ?.let { studentEntryRepository.findByStudent(it) } ?: emptyList()
             val syncedTeacherEntries = restoredSession?.takeIf { it.role == UserRole.Teacher }
-                ?.let { studentEntryRepository.findSubmittedByTeacher(it.email) } ?: emptyList()
+                ?.let { studentEntryRepository.findSubmittedByTeacher(it) } ?: emptyList()
             val fetchedHolidays = HolidayRemoteDataSource.fetchHolidays()
             uiState = uiState.copy(
                 notebooks = syncedNotebooks,
@@ -126,21 +128,21 @@ class AppViewModel(
     }
 
     fun onUserLoggedIn(account: UserAccount) {
-        userRepository.saveSession(account)
+        if (account.remoteId == null) userRepository.saveSession(account)
         uiState = uiState.copy(currentAccount = account)
         viewModelScope.launch {
             val photoUri = withContext(Dispatchers.IO) {
                 profilePhotoStorage.uriFor(account.email)
             }
-            val syncedNotebooks = notebookRepository.syncWithBackend()
+            val syncedNotebooks = notebookRepository.syncWithBackend(account)
             val allStudents = userRepository.findAllStudents()
             val studentEntries = if (account.role == UserRole.Student) {
-                studentEntryRepository.findByStudent(account.email)
+                studentEntryRepository.findByStudent(account)
             } else {
                 emptyList()
             }
             val teacherEntries = if (account.role == UserRole.Teacher) {
-                studentEntryRepository.findSubmittedByTeacher(account.email)
+                studentEntryRepository.findSubmittedByTeacher(account)
             } else {
                 emptyList()
             }
@@ -243,11 +245,13 @@ class AppViewModel(
         } else {
             listOf(savedEntry) + uiState.studentEntries
         }
+        val syncError = studentEntryRepository.lastError
+        val visibleError = syncError.takeUnless { isDraft }
         uiState = uiState.copy(
             studentEntries = updatedList,
-            editingEntryId = null
+            editingEntryId = if (visibleError == null) null else savedEntry.id
         )
-        return null
+        return visibleError
     }
 
     suspend fun reviewEntry(entryId: Long, feedback: String): String? {
@@ -282,6 +286,7 @@ class AppViewModel(
     suspend fun assignCourse(course: String, subject: String): String? {
         val teacher = uiState.currentAccount ?: return AppErrors.NOT_LOGGED_IN
         if (teacher.role != UserRole.Teacher) return "Solo los docentes pueden tomar un curso."
+        if (teacher.remoteId != null) return "Las asignaciones docentes se administran en el backend."
         if (teacher.assignedCourse != null) return "Ya tienes un curso asignado; no puedes tomar otro."
         val success = userRepository.assignCourseToTeacher(teacher.email, course, subject)
         if (success) {
@@ -294,18 +299,20 @@ class AppViewModel(
     }
 
     fun logout() {
-        userRepository.clearSession()
-        uiState = uiState.copy(
-            currentAccount = null,
-            selectedNotebookId = null,
-            editingEntryId = null,
-            studentEntries = emptyList(),
-            teacherEntries = emptyList(),
-            profilePhotoUri = null,
-            profilePhotoError = null,
-            syncWarning = null,
-            destination = AuthDestination.Welcome
-        )
+        viewModelScope.launch {
+            authProvider.logout()
+            uiState = uiState.copy(
+                currentAccount = null,
+                selectedNotebookId = null,
+                editingEntryId = null,
+                studentEntries = emptyList(),
+                teacherEntries = emptyList(),
+                profilePhotoUri = null,
+                profilePhotoError = null,
+                syncWarning = null,
+                destination = AuthDestination.Welcome
+            )
+        }
     }
 
     companion object {
@@ -314,7 +321,8 @@ class AppViewModel(
             userRepository: UserRepository,
             notebookRepository: NotebookRepository,
             studentEntryRepository: StudentEntryRepository,
-            profilePhotoStorage: ProfilePhotoStorage
+            profilePhotoStorage: ProfilePhotoStorage,
+            authProvider: AuthProvider
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -323,7 +331,8 @@ class AppViewModel(
                     userRepository = userRepository,
                     notebookRepository = notebookRepository,
                     studentEntryRepository = studentEntryRepository,
-                    profilePhotoStorage = profilePhotoStorage
+                    profilePhotoStorage = profilePhotoStorage,
+                    authProvider = authProvider
                 ) as T
             }
         }

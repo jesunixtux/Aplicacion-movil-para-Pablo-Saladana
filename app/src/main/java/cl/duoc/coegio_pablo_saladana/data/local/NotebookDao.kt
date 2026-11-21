@@ -16,6 +16,9 @@ interface NotebookDao {
     @Query("SELECT * FROM notebooks ORDER BY createdAt DESC, id DESC")
     suspend fun findAll(): List<NotebookEntity>
 
+    @Query("SELECT * FROM notebooks WHERE remoteOwnerId = :userId OR cachedForUserId = :userId ORDER BY createdAt DESC, id DESC")
+    suspend fun findForRemoteUser(userId: Long): List<NotebookEntity>
+
     @Query("SELECT * FROM notebooks WHERE id = :id LIMIT 1")
     suspend fun findById(id: Long): NotebookEntity?
 

@@ -8,18 +8,19 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import cl.duoc.coegio_pablo_saladana.data.repository.UserRepository
+import cl.duoc.coegio_pablo_saladana.domain.auth.AuthOutcome
+import cl.duoc.coegio_pablo_saladana.domain.auth.AuthProvider
+import cl.duoc.coegio_pablo_saladana.domain.auth.RegistrationData
 import cl.duoc.coegio_pablo_saladana.domain.model.UserAccount
 import cl.duoc.coegio_pablo_saladana.domain.model.UserGender
 import cl.duoc.coegio_pablo_saladana.domain.model.UserRole
 import cl.duoc.coegio_pablo_saladana.domain.validation.AuthFormValidator
 import cl.duoc.coegio_pablo_saladana.domain.validation.PersonNameValidator
 import cl.duoc.coegio_pablo_saladana.domain.validation.RutValidator
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Gestiona el estado de los formularios de autenticación y coordina el acceso con UserRepository. */
-class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
+class AuthViewModel(private val authProvider: AuthProvider) : ViewModel() {
 
     var loginUiState by mutableStateOf(LoginUiState())
         private set
@@ -61,17 +62,18 @@ class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
         }
         viewModelScope.launch {
             loginUiState = loginUiState.copy(isLoading = true)
-            delay(500)
-            val account = userRepository.login(loginUiState.email, loginUiState.password)
-            if (account == null) {
+            when (val outcome = authProvider.login(loginUiState.email, loginUiState.password)) {
+                is AuthOutcome.Failure -> {
                 loginUiState = loginUiState.copy(
                     isLoading = false,
                     isError = true,
-                    message = userRepository.lastError ?: "El correo o la contraseña no son correctos."
+                    message = outcome.message
                 )
-            } else {
+                }
+                is AuthOutcome.Success -> {
                 loginUiState = LoginUiState()
-                onSuccess(account)
+                onSuccess(outcome.account)
+                }
             }
         }
     }
@@ -148,8 +150,7 @@ class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
         }
         viewModelScope.launch {
             registerUiState = registerUiState.copy(isLoading = true)
-            delay(500)
-            val account = userRepository.register(
+            val outcome = authProvider.register(RegistrationData(
                 firstName = state.firstName,
                 middleName = state.middleName,
                 paternalSurname = state.paternalSurname,
@@ -160,15 +161,14 @@ class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
                 role = state.selectedRole,
                 gender = state.selectedGender,
                 course = state.selectedCourse
-            )
-            if (account != null) {
-                registerUiState = RegisterUiState()
-                onSuccess(account)
-            } else {
-                registerUiState = registerUiState.copy(
-                    isLoading = false,
-                    isError = true,
-                    message = userRepository.lastError ?: "Ya existe una cuenta con ese correo o RUT."
+            ))
+            when (outcome) {
+                is AuthOutcome.Success -> {
+                    registerUiState = RegisterUiState()
+                    onSuccess(outcome.account)
+                }
+                is AuthOutcome.Failure -> registerUiState = registerUiState.copy(
+                    isLoading = false, isError = true, message = outcome.message
                 )
             }
         }
@@ -191,11 +191,11 @@ class AuthViewModel(private val userRepository: UserRepository) : ViewModel() {
         )
 
     companion object {
-        fun factory(userRepository: UserRepository): ViewModelProvider.Factory =
+        fun factory(authProvider: AuthProvider): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return AuthViewModel(userRepository) as T
+                    return AuthViewModel(authProvider) as T
                 }
             }
     }

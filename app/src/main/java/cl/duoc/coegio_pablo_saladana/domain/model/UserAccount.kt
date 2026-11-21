@@ -25,7 +25,9 @@ data class UserAccount(
     val gender: UserGender,
     val course: String = SchoolCourses.DEFAULT_STUDENT_COURSE,
     val assignedCourse: String? = null, // Curso asignado al docente
-    val assignedSubject: String? = null // Asignatura asignada al docente
+    val assignedSubject: String? = null, // Asignatura asignada al docente
+    /** Identidad del servidor; null identifica una cuenta exclusivamente local. */
+    val remoteId: Long? = null
 ) {
     val fullName: String
         get() = listOf(firstName, middleName, paternalSurname, maternalSurname)

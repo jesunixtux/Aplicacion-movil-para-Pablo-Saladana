@@ -2,15 +2,15 @@
 
 Aplicación móvil Android para registrar y revisar el aprendizaje de estudiantes ficticios de 5.º a 8.º básico mediante bitácoras mensuales por curso y asignatura.
 
-> **Etapa actual: MVP Android en Room.** La integración con MySQL / Spring Boot se realizará en una etapa posterior. Los datos de prueba se guardan **solo en el dispositivo**, por lo que no se comparten automáticamente con otros teléfonos. Esto permite validar el flujo de la aplicación, pero aún no satisface la privacidad ni la sincronización de un sistema centralizado entre dispositivos.
+> **Etapa actual: MVP integrado con Spring Boot / MySQL.** MySQL es la fuente central de cuentas, bitácoras, registros, evidencias y revisiones. Room se conserva como caché y almacenamiento de borradores sin conexión.
 
 ## Estado actual
 
 - Pantalla inicial con acceso a registro e inicio de sesión.
-- Registro manual de cuentas ficticias como estudiante o docente.
+- Registro público de cuentas ficticias de estudiante; las cuentas docentes se cargan únicamente con el perfil de desarrollo del backend.
 - Validación y formateo de RUT chileno, incluyendo dígito verificador numérico o `K`.
 - Registro de género masculino, femenino u otro para personalizar el saludo.
-- Usuarios y credenciales guardados localmente en SQLite mediante Room.
+- Autenticación real mediante `/api/auth/login` y `/api/auth/me`, con token cifrado por Android Keystore y cierre de sesión al expirar.
 - Creación automática de la base de datos `bitacora.db` al registrar o consultar una cuenta.
 - Sesión activa persistente y restauración automática del dashboard correspondiente.
 - Fotos de perfil recortables, guardadas localmente en formato cuadrado de 64 × 64 píxeles.
@@ -21,7 +21,7 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 - Evidencias de clase: fotos, documentos de hasta 10 MB y enlaces HTTP/HTTPS; los archivos se conservan como URI locales con permiso de lectura.
 - Indicadores por bitácora (estudiantes con/sin participación, entregas pendientes y revisadas), filtros de entregas por estudiante/fecha/estado e informe PDF mensual.
 - Recordatorios internos de cierre, siguiente mes y semestre, activables por bitácora.
-- El cliente de Spring Boot existe en el proyecto, pero su integración con el nuevo modelo se deja para la siguiente etapa.
+- Sincronización real con Spring Boot: bitácoras, borradores, entregas, revisiones y evidencias multipart; Room conserva el trabajo sin conexión y evita duplicados mediante identificadores remotos.
 - Consumo de API externa de Feriados de Chile (`https://date.nager.at/api/v3/PublicHolidays/{year}/CL`) para el calendario escolar y validación contextual de fechas de clase.
 - Configuración de firma de APK release (`signingConfigs`) mediante `keystore.properties`.
 - Estados de carga, validaciones y mensajes de confirmación en las acciones principales.
@@ -81,20 +81,38 @@ El APK de desarrollo se genera en:
 
 El informe de cobertura se genera en `app/build/reports/coverage/test/debug/index.html`.
 
-## Backend Spring Boot y API externa (siguiente etapa)
+## Backend Spring Boot y API externa
 
-El backend que se integrará posteriormente está en el repositorio hermano `jesunixtux/pablo-salandra-backend`. Requiere JDK 21 y MySQL local. Desde esa carpeta:
+El backend integrado está en el repositorio hermano `jesunixtux/pablo-salandra-backend`. Requiere JDK 21 y MySQL local. Desde esa carpeta:
 
 ```bash
 ./MYSQL-Local/start-mysql.sh
 ./gradlew test
-./gradlew bootRun
+SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 ```
 
-**Pendiente para la siguiente etapa:** unificar el puerto y la URL real del servidor, trasladar los nuevos campos mensuales y las evidencias, subir los archivos y aplicar autenticación/autorización en cada endpoint. La URL histórica del cliente se encuentra en `SchoolBackend.BASE_URL`, dentro de `data/remote/NotebookRemoteDataSource.kt`. `backend/` dentro de este repositorio es una implementación anterior con H2.
+El emulador usa por defecto `http://10.0.2.2:8090/`. Se puede cambiar sin modificar código:
 
-- **Persistencia actual (Room):** publicar bitácoras, asignar estudiantes, guardar registros, revisar entregas y exportar informes funciona localmente sin Spring Boot. El cliente remoto queda inactivo hasta adaptar el backend.
+```bash
+./gradlew installDebug -PapiBaseUrl=http://IP_O_HOST:8090/
+```
+
+El HTTP sin cifrar se acepta solo para `localhost`, el emulador, redes privadas y nombres `.local`; fuera del entorno local se debe usar HTTPS. La sincronización viene activa y se puede deshabilitar explícitamente con `-PremoteSyncEnabled=false`.
+
+- **Persistencia:** Spring Boot/MySQL centraliza los datos compartidos. Room mantiene caché, asociación `remoteId` y borradores offline; al volver la conexión, `SyncPlanner` sincroniza sin borrar los registros locales.
 - **Consumo de API externa con Retrofit:** `HolidayRemoteDataSource` consulta los feriados de Chile en `https://date.nager.at/api/v3/PublicHolidays/{year}/CL` (con respaldo local offline), mostrándolos en los paneles de docente/estudiante y avisando en el formulario cuando la fecha de clase coincide con un feriado.
+
+### Validación de integración (21 de noviembre de 2026)
+
+- Inicio de sesión y restauración de sesión desde Android contra Spring Boot/MySQL.
+- Consulta de bitácoras autorizadas y aislamiento entre estudiantes.
+- Creación de borrador, subida multipart de fotografía, envío y revisión docente.
+- Descarga autenticada de la evidencia y visualización de retroalimentación.
+- Borrador creado sin conexión, conservado tras reiniciar Android y sincronizado una sola vez al recuperar el backend.
+- Reinicio de Android y Spring Boot sin pérdida ni duplicación de datos.
+- Pruebas unitarias y `assembleDebug` de Android; pruebas H2, pruebas MySQL aisladas y `bootJar` del backend.
+
+Queda pendiente repetir el recorrido en un dispositivo físico y configurar HTTPS para cualquier servidor fuera de la red local controlada.
 
 ## Generación de APK firmado (Release)
 
@@ -133,7 +151,7 @@ SQLite está incluido en Android. El proyecto usa Room como capa de acceso tipad
 
 La base de datos se crea automáticamente mediante `AppDatabase`. Contiene las tablas `users`, `notebooks` y `student_entries`, con sus DAO y repositorios. Incluye sistema de cursos y asignación directa de estudiantes a bitácoras, además del estado de revisión docente (`isReviewed`) y retroalimentación (`teacherFeedback`). Cada registro guarda la bitácora, estudiante, fecha, contenido, actividad, aprendizaje, dudas, si está enviado o en borrador, y la revisión del docente.
 
-Las contraseñas nuevas se almacenan con una sal única y PBKDF2. Se usa HMAC-SHA-256 cuando está disponible y HMAC-SHA-1 en Android 7 para mantener compatibilidad con la versión mínima. Las cuentas anteriores con hash SHA-256 siguen funcionando: el hash se actualiza al iniciar sesión correctamente. El hash no se expone en el modelo que usa la interfaz.
+En el modo remoto, las contraseñas se validan exclusivamente en Spring Boot y no se guardan en Room. El almacenamiento PBKDF2 local se conserva solo para compatibilidad cuando la sincronización remota está deshabilitada.
 
 ## Fotos de perfil
 
@@ -168,7 +186,7 @@ El estiramiento usa el efecto de desplazamiento de la plataforma configurado en 
 
 ## Entorno limpio para pruebas
 
-La aplicación inicia sin usuarios ni bitácoras precargadas. Todas las cuentas deben crearse manualmente desde **Registrarse** usando datos ficticios (no ingresar RUT, nombres, correos, fotografías ni credenciales reales). Para limpiar por completo los datos locales del emulador:
+La aplicación inicia sin datos Room precargados. Con el perfil `dev`, el backend carga de forma idempotente las cuentas y bitácoras ficticias documentadas en `readme-datos-pruebas.md` y `cuentaa-de-ejemplos.txt`. No ingresar RUT, nombres, correos, fotografías ni credenciales reales. Para limpiar por completo los datos locales del emulador:
 
 ```bash
 adb shell pm clear cl.duoc.coegio_pablo_saladana
@@ -184,7 +202,7 @@ adb shell pm clear cl.duoc.coegio_pablo_saladana
 6. Descargar el informe mensual en PDF, abrirlo y comprobar que incluye cifras de participación y aportes.
 7. Cerrar la bitácora, regresar como estudiante y comprobar que el historial sigue visible pero que ya no es posible enviar nuevos registros.
 
-**Por comprobar en Android Studio:** compilación, apertura de los selectores de archivos, permisos persistentes del dispositivo, funcionamiento del PDF y migración Room 9 → 10. La persistencia entre dispositivos, transferencia de evidencias y autorización del servidor son tareas de la futura integración con Spring Boot/MySQL.
+La integración, los selectores de archivos y la persistencia se comprobaron en emulador. No se repitió el recorrido completo en un dispositivo físico; el PDF y el APK release no forman parte de esta migración.
 
 ## Lista de pruebas de autenticación y SQLite
 
@@ -257,12 +275,12 @@ adb shell pm clear cl.duoc.coegio_pablo_saladana
 - [ ] Los estados de carga bloquean acciones duplicadas.
 - [ ] Los mensajes de éxito y error son claros.
 - [ ] La interfaz se puede desplazar en pantallas pequeñas.
-- [ ] No se muestran datos demo precargados.
+- [ ] Solo se muestran los datos demo autorizados para la cuenta activa.
 - [ ] La app vuelve a iniciar sin cuentas después de limpiar sus datos.
 
 ## Convenciones de trabajo
 
-Para evidenciar el trabajo en pareja, cada integrante debe hacer aportes propios desde su cuenta de GitHub en una rama. Revisen los cambios mediante pull requests antes de integrarlos en `main`.
+Para esta integración se trabajó directamente en `main`, según la instrucción de entrega, con commits técnicos después de validar ambos proyectos.
 
 - Kotlin, Jetpack Compose y Material Design 3.
 - Arquitectura MVVM.

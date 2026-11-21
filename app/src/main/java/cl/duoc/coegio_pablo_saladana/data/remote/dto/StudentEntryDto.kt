@@ -40,7 +40,7 @@ data class StudentEntryDto(
      * igual que el payload legacy. Sin submittedAt remoto, un registro enviado hereda
      * createdAt como fecha de envío (misma regla que la migración Room 9→10).
      */
-    fun toEntity(notebook: NotebookEntity): StudentEntryEntity = StudentEntryEntity(
+    fun toEntity(notebook: NotebookEntity, remoteOwnerId: Long? = null): StudentEntryEntity = StudentEntryEntity(
         notebookId = notebook.id,
         notebookTitle = notebookTitle ?: notebook.title,
         studentEmail = studentEmail.orEmpty(),
@@ -61,7 +61,8 @@ data class StudentEntryDto(
         submittedAt = submittedAt ?: createdAt.takeIf { !isDraft },
         reviewedAt = reviewedAt,
         reviewerEmail = reviewerEmail.orEmpty(),
-        updatedAt = updatedAt ?: createdAt
+        updatedAt = updatedAt ?: createdAt,
+        remoteOwnerId = remoteOwnerId
     )
 
     companion object {

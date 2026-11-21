@@ -61,7 +61,7 @@ class NotebookDtoTest {
         assertEquals(1, entity.month)
         assertEquals(2026, entity.year)
         assertFalse(entity.isClosed)
-        assertEquals(entity.createdAt, entity.publishedAt)
+        assertEquals(0L, entity.publishedAt)
         assertNull(entity.closedAt)
         assertTrue(entity.remindersEnabled)
         assertEquals(entity.createdAt, entity.updatedAt)
@@ -81,6 +81,13 @@ class NotebookDtoTest {
             .toEntity(localId = 7)!!
         assertEquals(SchoolCourses.GENERAL, entity.course)
         assertEquals(7L, entity.id)
+    }
+
+    @Test
+    fun nullPublishedAtRemainsUnpublished() {
+        val entity = gson.fromJson("""{"id":9,"title":"Borrador","publishedAt":null}""", NotebookDto::class.java)
+            .toEntity()!!
+        assertEquals(0L, entity.publishedAt)
     }
 
     @Test

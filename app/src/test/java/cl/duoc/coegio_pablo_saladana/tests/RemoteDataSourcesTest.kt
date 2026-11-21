@@ -54,7 +54,8 @@ class RemoteDataSourcesTest {
         assertEquals("Analizar", parsed.purpose)
         assertEquals("Escribir", parsed.instructions)
         assertEquals("", parsed.questions)
-        assertEquals("docente@example.com", parsed.teacherEmail)
+        // La identidad docente la deriva el backend del Bearer; no viaja en el body.
+        assertEquals("", parsed.teacherEmail)
     }
 
     @Test

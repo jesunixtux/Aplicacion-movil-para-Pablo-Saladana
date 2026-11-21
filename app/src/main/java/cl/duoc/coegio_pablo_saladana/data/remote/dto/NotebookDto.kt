@@ -39,7 +39,11 @@ data class NotebookDto(
      * bitácora; los campos ausentes usan los mismos defaults que NotebookEntity.
      * [localId] permite conservar el identificador local al actualizar una fila existente.
      */
-    fun toEntity(localId: Long = 0): NotebookEntity? {
+    fun toEntity(
+        localId: Long = 0,
+        remoteOwnerId: Long? = null,
+        cachedForUserId: Long? = null
+    ): NotebookEntity? {
         if (title.isNullOrBlank()) return null
         return NotebookEntity(
             id = localId,
@@ -57,10 +61,12 @@ data class NotebookDto(
             month = month ?: 1,
             year = year ?: 2026,
             isClosed = isClosed ?: false,
-            publishedAt = publishedAt ?: createdAt,
+            publishedAt = publishedAt ?: 0,
             closedAt = closedAt,
             remindersEnabled = remindersEnabled ?: true,
-            updatedAt = updatedAt ?: createdAt
+            updatedAt = updatedAt ?: createdAt,
+            remoteOwnerId = remoteOwnerId,
+            cachedForUserId = cachedForUserId
         )
     }
 

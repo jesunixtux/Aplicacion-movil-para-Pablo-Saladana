@@ -31,5 +31,7 @@ data class StudentEntryEntity(
     // --- Metadatos de sincronización (migración 10→11, aditivos y conservadores) ---
     val syncState: String = "LOCAL_ONLY",
     val syncError: String? = null,
-    val updatedAt: Long = 0
+    val updatedAt: Long = 0,
+    /** Propietario remoto verificado; nunca se infiere a partir del correo. */
+    val remoteOwnerId: Long? = null
 )

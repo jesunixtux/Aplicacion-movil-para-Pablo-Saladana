@@ -34,10 +34,10 @@ android {
         //   Emulador (por defecto):  http://10.0.2.2:8090/  (puerto real del backend: server.port=8090)
         //   Dispositivo físico:      ./gradlew assembleDebug -PapiBaseUrl=http://192.168.1.50:8090/
         //   Servidor externo:        ./gradlew assembleRelease -PapiBaseUrl=https://api.example.org/
-        // La comunicación remota sigue DESACTIVada hasta que el backend admita el contrato completo.
+        // La integración está activa para el backend local; SchoolBackend rechaza HTTP fuera de hosts privados.
         val apiBaseUrl = (project.findProperty("apiBaseUrl") as String?) ?: "http://10.0.2.2:8090/"
         val remoteSyncEnabled =
-            (project.findProperty("remoteSyncEnabled") as String?)?.toBooleanStrictOrNull() ?: false
+            (project.findProperty("remoteSyncEnabled") as String?)?.toBooleanStrictOrNull() ?: true
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         buildConfigField("boolean", "REMOTE_SYNC_ENABLED", remoteSyncEnabled.toString())
     }

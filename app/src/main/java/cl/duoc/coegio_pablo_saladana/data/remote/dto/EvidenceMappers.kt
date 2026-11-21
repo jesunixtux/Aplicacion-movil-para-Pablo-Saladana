@@ -31,7 +31,7 @@ object EvidenceMappers {
     }
 
     private fun localFileEvidence(uri: String, kind: EvidenceKind): EvidenceDto =
-        if (uri.startsWith("http://") || uri.startsWith("https://")) {
+        if (uri.startsWith("http://") || uri.startsWith("https://") || uri.toLongOrNull() != null) {
             // Referencia remota ya subida en otro dispositivo: es compartible.
             EvidenceDto(kind = kind, remoteRef = uri, transferState = EvidenceTransferState.UPLOADED)
         } else {
@@ -49,7 +49,7 @@ object EvidenceMappers {
     private fun remoteLines(evidences: List<EvidenceDto>?, kind: EvidenceKind): String =
         evidences.orEmpty()
             .filter { it.kind == kind && it.isShareable && !it.remoteRef.isNullOrBlank() }
-            .mapNotNull { it.remoteRef }
+            .mapNotNull { it.id?.toString() ?: it.remoteRef }
             .joinToString("\n")
 
     fun toLocalLinkLines(evidences: List<EvidenceDto>?): String =

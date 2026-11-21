@@ -15,7 +15,7 @@ import org.junit.Test
 
 class SessionTokenInterceptorTest {
     /** Chain de prueba que registra la petición que realmente salió. */
-    private class RecordingChain(private val initial: Request) : Interceptor.Chain {
+    private class RecordingChain(private val initial: Request, private val responseCode: Int = 200) : Interceptor.Chain {
         var proceeded: Request? = null
 
         override fun request(): Request = initial
@@ -24,7 +24,7 @@ class SessionTokenInterceptorTest {
             return Response.Builder()
                 .request(request)
                 .protocol(Protocol.HTTP_1_1)
-                .code(200)
+                .code(responseCode)
                 .message("OK")
                 .build()
         }
@@ -65,5 +65,13 @@ class SessionTokenInterceptorTest {
     fun defaultProviderHasNoEmbeddedCredentials() {
         // El proveedor por defecto de la app no entrega ningún token ficticio.
         assertNull(SessionTokenProvider { null }.currentToken())
+    }
+
+    @Test
+    fun unauthorizedResponseInvalidatesTheRemoteSession() {
+        var invalidated = false
+        val chain = RecordingChain(baseRequest, responseCode = 401)
+        SessionTokenInterceptor(SessionTokenProvider { "expired-token" }) { invalidated = true }.intercept(chain)
+        assertEquals(true, invalidated)
     }
 }

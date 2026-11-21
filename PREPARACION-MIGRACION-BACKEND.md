@@ -1,5 +1,7 @@
 # Preparación de migración al backend Spring Boot / MySQL
 
+> **Documento histórico.** Describe la preparación anterior. La integración real quedó implementada y validada; consulta `README.md` para el estado vigente.
+
 Rama: `preparacion-migracion-backend` · Aplicación Android **Bitácora DSY1105**
 
 > **Alcance de esta entrega:** solo se modificó el repositorio Android. El backend

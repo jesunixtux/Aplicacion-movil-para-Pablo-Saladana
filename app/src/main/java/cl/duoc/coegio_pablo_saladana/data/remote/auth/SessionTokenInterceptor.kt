@@ -17,7 +17,10 @@ fun interface SessionTokenProvider {
  * Sin token, la petición sale sin cabecera de autenticación: el filtrado por
  * correo del backend actual NO se considera autenticación (ver documentación).
  */
-class SessionTokenInterceptor(private val tokenProvider: SessionTokenProvider) : Interceptor {
+class SessionTokenInterceptor(
+    private val tokenProvider: SessionTokenProvider,
+    private val onUnauthorized: () -> Unit = {}
+) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val token = tokenProvider.currentToken()
         val request = if (token.isNullOrBlank()) {
@@ -27,6 +30,8 @@ class SessionTokenInterceptor(private val tokenProvider: SessionTokenProvider) :
                 .header("Authorization", "Bearer $token")
                 .build()
         }
-        return chain.proceed(request)
+        return chain.proceed(request).also { response ->
+            if (response.code == 401 && !token.isNullOrBlank()) onUnauthorized()
+        }
     }
 }

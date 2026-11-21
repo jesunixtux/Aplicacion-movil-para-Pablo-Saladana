@@ -23,6 +23,9 @@ interface StudentEntryDao {
     @Query("SELECT * FROM student_entries WHERE studentEmail = :email ORDER BY createdAt DESC, id DESC")
     suspend fun findByStudent(email: String): List<StudentEntryEntity>
 
+    @Query("SELECT * FROM student_entries WHERE remoteOwnerId = :userId ORDER BY createdAt DESC, id DESC")
+    suspend fun findByRemoteOwner(userId: Long): List<StudentEntryEntity>
+
     @Query(
         """
         SELECT student_entries.* FROM student_entries
@@ -32,6 +35,16 @@ interface StudentEntryDao {
         """
     )
     suspend fun findSubmittedByTeacher(email: String): List<StudentEntryEntity>
+
+    @Query(
+        """
+        SELECT student_entries.* FROM student_entries
+        INNER JOIN notebooks ON notebooks.id = student_entries.notebookId
+        WHERE notebooks.remoteOwnerId = :teacherId AND student_entries.isDraft = 0
+        ORDER BY student_entries.createdAt DESC, student_entries.id DESC
+        """
+    )
+    suspend fun findSubmittedByRemoteTeacher(teacherId: Long): List<StudentEntryEntity>
 
     @Query("SELECT * FROM student_entries WHERE id = :id LIMIT 1")
     suspend fun findById(id: Long): StudentEntryEntity?
