@@ -64,15 +64,15 @@ class AuthViewModel(private val authProvider: AuthProvider) : ViewModel() {
             loginUiState = loginUiState.copy(isLoading = true)
             when (val outcome = authProvider.login(loginUiState.email, loginUiState.password)) {
                 is AuthOutcome.Failure -> {
-                loginUiState = loginUiState.copy(
-                    isLoading = false,
-                    isError = true,
-                    message = outcome.message
-                )
+                    loginUiState = loginUiState.copy(
+                        isLoading = false,
+                        isError = true,
+                        message = outcome.message
+                    )
                 }
                 is AuthOutcome.Success -> {
-                loginUiState = LoginUiState()
-                onSuccess(outcome.account)
+                    loginUiState = LoginUiState()
+                    onSuccess(outcome.account)
                 }
             }
         }

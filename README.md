@@ -4,6 +4,10 @@ Aplicación móvil Android para registrar y revisar el aprendizaje de estudiante
 
 > **Etapa actual: MVP integrado con Spring Boot / MySQL.** MySQL es la fuente central de cuentas, bitácoras, registros, evidencias y revisiones. Room se conserva como caché y almacenamiento de borradores sin conexión.
 
+## Integrantes
+
+Antes de entregar, ambos integrantes deben escribir aquí sus nombres completos. El segundo integrante debe realizar ese cambio desde su propia cuenta de GitHub para que la participación quede respaldada por un aporte real; no se incluyen identidades ficticias.
+
 ## Estado actual
 
 - Pantalla inicial con acceso a registro e inicio de sesión.
@@ -62,8 +66,11 @@ Ejecutar desde la raíz de este proyecto:
 # Ejecutar pruebas unitarias
 ./gradlew test
 
-# Generar informe de cobertura de pruebas unitarias
-./gradlew :app:createDebugUnitTestCoverageReport
+# Verificar cobertura mínima de la lógica portable y generar el informe
+./gradlew :app:logicCoverageReport :app:verifyLogicCoverage
+
+# Ejecutar pruebas instrumentadas de repositorios, Room y navegación
+./gradlew connectedDebugAndroidTest
 
 # Compilar la aplicación de desarrollo
 ./gradlew assembleDebug
@@ -79,7 +86,7 @@ El APK de desarrollo se genera en:
 
 `app/build/outputs/apk/debug/app-debug.apk`
 
-El informe de cobertura se genera en `app/build/reports/coverage/test/debug/index.html`.
+El informe evaluable de lógica se genera en `app/build/reports/coverage/logic/index.html`. La verificación falla si la cobertura de líneas de ese alcance baja de 80 %.
 
 ## Backend Spring Boot y API externa
 
@@ -102,6 +109,22 @@ El HTTP sin cifrar se acepta solo para `localhost`, el emulador, redes privadas 
 - **Persistencia:** Spring Boot/MySQL centraliza los datos compartidos. Room mantiene caché, asociación `remoteId` y borradores offline; al volver la conexión, `SyncPlanner` sincroniza sin borrar los registros locales.
 - **Consumo de API externa con Retrofit:** `HolidayRemoteDataSource` consulta los feriados de Chile en `https://date.nager.at/api/v3/PublicHolidays/{year}/CL` (con respaldo local offline), mostrándolos en los paneles de docente/estudiante y avisando en el formulario cuando la fecha de clase coincide con un feriado.
 
+### Contrato REST utilizado por Android
+
+Todas las rutas protegidas envían `Authorization: Bearer`; las altas reintentables usan `Idempotency-Key` y las modificaciones concurrentes usan `If-Match`.
+
+| Recurso | Endpoints principales |
+| --- | --- |
+| Autenticación | `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout` |
+| Bitácoras | `GET/POST /api/notebooks`, `GET/PUT/DELETE /api/notebooks/{id}`, `POST /api/notebooks/{id}/publish`, `POST /api/notebooks/{id}/close`, `PUT /api/notebooks/{id}/reminders` |
+| Registros | `GET/POST /api/student-entries`, `GET/PUT/DELETE /api/student-entries/{id}`, `POST /api/student-entries/{id}/submit`, `PUT /api/student-entries/{id}/review` |
+| Evidencias | `POST /api/evidences` (`multipart/form-data`), `GET /api/evidences/{id}` |
+| API externa | `GET https://date.nager.at/api/v3/PublicHolidays/{year}/CL` |
+
+### Cobertura automatizada
+
+La suite contiene 146 pruebas unitarias y 8 pruebas instrumentadas. El informe JaCoCo de la lógica portable —modelos, validaciones, sincronización, errores, DTO, navegación y autenticación— registra 92 % de instrucciones, 84 % de ramas y 558 de 571 líneas cubiertas (97,7 %). Las capas que requieren Android, Room o `ContentResolver` se comprueban con las pruebas instrumentadas y no se mezclan artificialmente con esa métrica.
+
 ### Validación de integración (21 de noviembre de 2026)
 
 - Inicio de sesión y restauración de sesión desde Android contra Spring Boot/MySQL.
@@ -111,18 +134,19 @@ El HTTP sin cifrar se acepta solo para `localhost`, el emulador, redes privadas 
 - Borrador creado sin conexión, conservado tras reiniciar Android y sincronizado una sola vez al recuperar el backend.
 - Reinicio de Android y Spring Boot sin pérdida ni duplicación de datos.
 - Pruebas unitarias y `assembleDebug` de Android; pruebas H2, pruebas MySQL aisladas y `bootJar` del backend.
+- APK release generado y verificado con `apksigner` usando APK Signature Scheme v2.
 
 Queda pendiente repetir el recorrido en un dispositivo físico y configurar HTTPS para cualquier servidor fuera de la red local controlada.
 
 ## Generación de APK firmado (Release)
 
-El módulo `app/build.gradle.kts` incluye la configuración `signingConfigs.release` que lee credenciales desde `keystore.properties` en la raíz del proyecto (ignorado por Git para no exponer claves privadas):
+El módulo `app/build.gradle.kts` incluye la configuración `signingConfigs.release` que lee credenciales desde `keystore.properties` en la raíz del proyecto (ignorado por Git para no exponer claves privadas). Una compilación release falla de inmediato si falta el archivo, alguna credencial o el JKS:
 
 1. Generar el keystore (una sola vez, fuera de control de versiones):
    ```bash
    keytool -genkeypair -v -keystore bitacora-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias bitacora
    ```
-2. Crear el archivo `keystore.properties` en la raíz del repositorio:
+2. Copiar `keystore.properties.example` como `keystore.properties` y completar las credenciales entregadas por un canal privado:
    ```properties
    storeFile=bitacora-release.jks
    storePassword=TU_PASSWORD
@@ -134,6 +158,14 @@ El módulo `app/build.gradle.kts` incluye la configuración `signingConfigs.rele
    ./gradlew assembleRelease
    ```
    El APK se genera en `app/build/outputs/apk/release/`.
+
+El APK y el JKS no se versionan. Se entregan juntos fuera de Git, con las contraseñas por un canal separado. La evidencia verificable de esta compilación es:
+
+![Evidencia del APK release firmado](docs/evidencia-firma.png)
+
+- APK SHA-256: `ab53f10d5cabd4f65ecc6e06e481d036026f7ad986d5a45f2c90eaaa11d45981`
+- JKS SHA-256: `735506292290ab0a1e0441228dc4e2004284056619f30b2bbf8c631fd505d463`
+- Certificado SHA-256: `a7017cf00accb7746cbe2b5128f3832b9e65d4803b939ad8460ac6e9bf0e895d`
 
 ## Dónde están las validaciones
 
@@ -202,7 +234,7 @@ adb shell pm clear cl.duoc.coegio_pablo_saladana
 6. Descargar el informe mensual en PDF, abrirlo y comprobar que incluye cifras de participación y aportes.
 7. Cerrar la bitácora, regresar como estudiante y comprobar que el historial sigue visible pero que ya no es posible enviar nuevos registros.
 
-La integración, los selectores de archivos y la persistencia se comprobaron en emulador. No se repitió el recorrido completo en un dispositivo físico; el PDF y el APK release no forman parte de esta migración.
+La integración, los selectores de archivos, la persistencia y el APK release firmado se comprobaron en emulador y herramientas locales. No se repitió el recorrido completo en un dispositivo físico.
 
 ## Lista de pruebas de autenticación y SQLite
 

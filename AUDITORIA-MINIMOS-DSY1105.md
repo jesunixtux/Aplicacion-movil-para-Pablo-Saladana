@@ -1,5 +1,8 @@
 # Auditoría de requisitos mínimos — Caso DSY1105 «Bitácora»
 
+> **Documento histórico de la etapa Room.** No representa el estado integrado actual.
+> Para la entrega vigente, consulta `README.md` y `readme-datos-pruebas.md` del backend.
+
 > Rama auditada: `mvp-android-minimos-2026-11`
 > Fecha de la revisión: 17 de noviembre de 2026
 > Estado de la compilación: `./gradlew :app:assembleDebug` ✅ BUILD SUCCESSFUL
